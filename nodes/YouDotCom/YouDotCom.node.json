@@ -1,0 +1,25 @@
+{
+  "node": "n8n-nodes-youdotcom.youDotCom",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Utility", "Data & Storage"],
+  "resources": {
+    "credentialDocumentation": [
+      {
+        "url": "https://docs.you.com/get-started/quickstart"
+      }
+    ],
+    "primaryDocumentation": [
+      {
+        "url": "https://docs.you.com/api-reference/search"
+      },
+      {
+        "url": "https://docs.you.com/api-reference/search/contents"
+      }
+    ]
+  },
+  "alias": ["search", "web search", "you", "youdotcom", "news", "ai search", "contents", "extract", "scrape", "crawl"],
+  "subcategories": {
+    "Utility": ["Data Transformation"]
+  }
+}

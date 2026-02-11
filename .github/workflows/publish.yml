@@ -1,0 +1,241 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: "Prerelease number (optional, creates x.y.z-next.N)"
+        required: false
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  NPM_PACKAGE_NAME: "@youdotcom-oss/n8n-nodes-youdotcom"
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    name: Update Version
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+      is_prerelease: ${{ steps.set_version.outputs.is_prerelease }}
+    steps:
+      - name: Validate inputs
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          if [[ "$INPUT_BUMP" != "patch" && "$INPUT_BUMP" != "minor" && "$INPUT_BUMP" != "major" ]]; then
+            echo "::error::Invalid bump type: $INPUT_BUMP"
+            exit 1
+          fi
+
+          if [[ -n "$INPUT_PRERELEASE" ]] && ! echo "$INPUT_PRERELEASE" | grep -qE '^[0-9]+$'; then
+            echo "::error::Invalid prerelease value: $INPUT_PRERELEASE"
+            exit 1
+          fi
+
+          echo "✓ Input validation passed"
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PUBLISH_TOKEN }}
+
+      - name: Compute version
+        id: set_version
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          CURRENT=$(jq -r '.version' package.json)
+          echo "Current version: $CURRENT"
+
+          BASE=$(echo "$CURRENT" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+
+          case "$INPUT_BUMP" in
+            major) base_version="$((MAJOR + 1)).0.0" ;;
+            minor) base_version="${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) base_version="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+
+          echo "Bumped version: $base_version"
+
+          if [[ "$BRANCH_NAME" != "main" ]]; then
+            echo "⚠️  Non-main branch detected: $BRANCH_NAME"
+
+            if [[ -n "$INPUT_PRERELEASE" ]]; then
+              echo "version=${base_version}-next.${INPUT_PRERELEASE}" >> $GITHUB_OUTPUT
+            else
+              EXISTING_VERSIONS=$(npm view "$NPM_PACKAGE_NAME" versions --json 2>/dev/null || echo "[]")
+
+              if ! echo "$EXISTING_VERSIONS" | jq empty 2>/dev/null; then
+                NEXT_NUMBER=1
+              else
+                HIGHEST=$(printf '%s' "$EXISTING_VERSIONS" | jq -r --arg base "$base_version" '
+                  [.[] | select(startswith($base + "-next.")) | ltrimstr($base + "-next.") | tonumber]
+                  | max // empty
+                ')
+
+                if [[ -z "$HIGHEST" ]]; then
+                  NEXT_NUMBER=1
+                else
+                  NEXT_NUMBER=$((HIGHEST + 1))
+                fi
+              fi
+
+              echo "version=${base_version}-next.${NEXT_NUMBER}" >> $GITHUB_OUTPUT
+            fi
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            if [[ -n "$INPUT_PRERELEASE" ]]; then
+              echo "version=${base_version}-next.${INPUT_PRERELEASE}" >> $GITHUB_OUTPUT
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "version=${base_version}" >> $GITHUB_OUTPUT
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          echo "✅ Computed version: $(grep 'version=' $GITHUB_OUTPUT | head -1)"
+
+      - name: Validate computed version
+        env:
+          VERSION: ${{ steps.set_version.outputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-([a-zA-Z0-9._-]+))?$ ]]; then
+            echo "::error::Computed version is invalid: $VERSION"
+            exit 1
+          fi
+          echo "✅ Version format validated: $VERSION"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Configure Git
+        env:
+          GIT_AUTHOR_NAME: ${{ github.actor }}
+          GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
+        run: |
+          git config user.name "$GIT_AUTHOR_NAME"
+          git config user.email "$GIT_AUTHOR_EMAIL"
+
+      - name: Update package.json version
+        env:
+          VERSION: ${{ steps.set_version.outputs.version }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          jq --arg ver "$VERSION" '.version = $ver' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Updated package.json version to $VERSION"
+
+          sed -i "s/const PACKAGE_VERSION = '.*'/const PACKAGE_VERSION = '$VERSION'/" nodes/YouDotCom/YouDotCom.node.ts
+          echo "Updated PACKAGE_VERSION in YouDotCom.node.ts to $VERSION"
+
+          rm -rf bun.lock node_modules
+          bun install
+          echo "✅ Lock file updated"
+
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          if [[ "$PACKAGE_VERSION" != "$VERSION" ]]; then
+            echo "::error::Version mismatch: $PACKAGE_VERSION != $VERSION"
+            exit 1
+          fi
+
+          echo "✅ Version verified: $PACKAGE_VERSION"
+
+          git add package.json bun.lock nodes/YouDotCom/YouDotCom.node.ts
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: publish v$VERSION [skip ci]"
+            git push origin "$BRANCH_NAME"
+          fi
+
+  npm-publish:
+    runs-on: ubuntu-latest
+    name: Publish to NPM
+    needs: [update-version]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Node.js (for NPM OIDC)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          registry-url: https://registry.npmjs.org
+          check-latest: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Publish to NPM (Trusted Publishing)
+        env:
+          IS_PRERELEASE: ${{ needs.update-version.outputs.is_prerelease }}
+        run: |
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            echo "Publishing as next (prerelease)"
+            npm publish --access public --provenance --tag next
+          else
+            echo "Publishing as latest (stable)"
+            npm publish --access public --provenance
+          fi
+
+  create-release:
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    needs: [update-version, npm-publish]
+    if: always() && needs.npm-publish.result == 'success'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          VERSION: ${{ needs.update-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.update-version.outputs.is_prerelease }}
+        run: |
+          TAG="v${VERSION}"
+          TITLE="v${VERSION}"
+
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            gh release create "${TAG}" \
+              --title "${TITLE}" \
+              --generate-notes \
+              --prerelease
+          else
+            gh release create "${TAG}" \
+              --title "${TITLE}" \
+              --generate-notes
+          fi
