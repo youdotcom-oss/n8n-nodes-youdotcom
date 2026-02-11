@@ -1,6 +1,6 @@
 {
   "name": "@youdotcom-oss/n8n-nodes-youdotcom",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "n8n community node for You.com APIs - Search and Contents extraction",
   "license": "MIT",
   "engines": {
@@ -44,7 +44,8 @@
     "lint:fix": "n8n-node lint --fix",
     "check": "biome check && tsc --noEmit",
     "check:write": "biome check --write",
-    "test": "bun test"
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -67,6 +68,6 @@
     "eslint": "9.32.0",
     "n8n-workflow": "^2.6.0",
     "typescript": "^5.9.3",
-    "zod": "^4.3.6"
+    "zod": "^3.25.67"
   }
 }
