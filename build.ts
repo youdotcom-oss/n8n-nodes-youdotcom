@@ -7,5 +7,5 @@ await Bun.build({
   outdir,
   target: 'node',
   format: 'cjs',
-  external: ['n8n-workflow', 'zod'],
+  external: ['n8n-workflow'],
 })

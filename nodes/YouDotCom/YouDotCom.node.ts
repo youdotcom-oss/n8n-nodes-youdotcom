@@ -7,13 +7,6 @@ import type {
   JsonObject,
 } from 'n8n-workflow'
 import { NodeApiError, NodeOperationError } from 'n8n-workflow'
-import { ZodError } from 'zod'
-import {
-  ContentsOptionsSchema,
-  ContentsResponseSchema,
-  SearchOptionsSchema,
-  SearchResponseSchema,
-} from './YouDotCom.schemas.ts'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
 const PACKAGE_VERSION = '0.2.6'
@@ -388,31 +381,6 @@ export class YouDotCom implements INodeType {
           returnData.push(...executionData)
         }
       } catch (error) {
-        // Handle Zod validation errors with detailed messages
-        if (error instanceof ZodError) {
-          const errorMessage = `Validation error:\n${error.issues.map((e, i) => `  ${i + 1}. ${e.path.join('.') || 'root'}: ${e.message}`).join('\n')}`
-          const serializedIssues = error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-            code: issue.code,
-          }))
-
-          if (this.continueOnFail()) {
-            returnData.push({
-              json: {
-                error: errorMessage,
-                validationErrors: serializedIssues,
-              },
-              pairedItem: { item: i },
-            })
-            continue
-          }
-          throw new NodeApiError(this.getNode(), { message: errorMessage, issues: serializedIssues } as JsonObject, {
-            itemIndex: i,
-          })
-        }
-
-        // Handle other errors
         if (this.continueOnFail()) {
           returnData.push({
             json: {
@@ -440,21 +408,18 @@ export class YouDotCom implements INodeType {
    */
   static async #executeSearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
     const query = context.getNodeParameter('query', itemIndex) as string
-    const rawOptions = context.getNodeParameter('searchOptions', itemIndex)
-
-    // Validate options with Zod schema
-    const options = SearchOptionsSchema.parse(rawOptions)
+    const options = context.getNodeParameter('searchOptions', itemIndex) as Record<string, unknown>
 
     const qs: Record<string, string | number> = { query }
 
-    if (options.count) qs.count = options.count
-    if (options.country) qs.country = options.country
-    if (options.freshness) qs.freshness = options.freshness
-    if (options.language) qs.language = options.language
-    if (options.livecrawl) qs.livecrawl = options.livecrawl
-    if (options.livecrawl_formats) qs.livecrawl_formats = options.livecrawl_formats
-    if (options.offset !== undefined) qs.offset = options.offset
-    if (options.safesearch) qs.safesearch = options.safesearch
+    if (options.count) qs.count = options.count as number
+    if (options.country) qs.country = options.country as string
+    if (options.freshness) qs.freshness = options.freshness as string
+    if (options.language) qs.language = options.language as string
+    if (options.livecrawl) qs.livecrawl = options.livecrawl as string
+    if (options.livecrawl_formats) qs.livecrawl_formats = options.livecrawl_formats as string
+    if (options.offset !== undefined) qs.offset = options.offset as number
+    if (options.safesearch) qs.safesearch = options.safesearch as string
 
     const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
       method: 'GET',
@@ -466,10 +431,7 @@ export class YouDotCom implements INodeType {
       json: true,
     })
 
-    // Validate API response with Zod schema
-    const response = SearchResponseSchema.parse(rawResponse)
-
-    return response as IDataObject
+    return rawResponse as IDataObject
   }
 
   /**
@@ -481,10 +443,7 @@ export class YouDotCom implements INodeType {
    */
   static async #executeContents(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject[]> {
     const urlsString = context.getNodeParameter('urls', itemIndex) as string
-    const rawOptions = context.getNodeParameter('contentsOptions', itemIndex)
-
-    // Validate options with Zod schema
-    const options = ContentsOptionsSchema.parse(rawOptions)
+    const options = context.getNodeParameter('contentsOptions', itemIndex) as Record<string, unknown>
 
     // Parse comma-separated URLs and trim whitespace
     const urls = urlsString
@@ -499,8 +458,9 @@ export class YouDotCom implements INodeType {
     // Build request body
     const body: Record<string, unknown> = { urls }
 
-    if (options.formats && options.formats.length > 0) {
-      body.formats = options.formats
+    const formats = options.formats as string[] | undefined
+    if (formats && formats.length > 0) {
+      body.formats = formats
     }
     if (options.crawl_timeout) {
       body.crawl_timeout = options.crawl_timeout
@@ -516,9 +476,6 @@ export class YouDotCom implements INodeType {
       json: true,
     })
 
-    // Validate API response with Zod schema
-    const response = ContentsResponseSchema.parse(rawResponse)
-
-    return response as IDataObject[]
+    return rawResponse as IDataObject[]
   }
 }
