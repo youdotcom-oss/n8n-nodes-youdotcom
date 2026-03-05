@@ -14,17 +14,40 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ### Search
 
-Search the web and news using You.com. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`) and filtering by country, language, freshness, and safe search level. Optionally livecrawl results to get full page content in markdown or HTML.
+Search the web and news using You.com. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`).
+
+| Parameter | Description |
+|-----------|-------------|
+| Query | The search query (required) |
+| Count | Max results per section, 1-100 (default: 10) |
+| Country | Two-letter country code to focus results geographically |
+| Freshness | Filter by recency: day, week, month, or year |
+| Language | BCP 47 language code for results (default: EN) |
+| Livecrawl | Fetch full page content for web, news, or all results |
+| Livecrawl Format | Format for livecrawled content: markdown or HTML |
+| Offset | Pagination offset, 0-9 |
+| Safe Search | Content filter: off, moderate, or strict |
 
 ### Get Contents
 
-Extract content from one or more URLs. Returns cleaned markdown, full HTML, and/or structured metadata (JSON-LD, OpenGraph, Twitter Cards). Configurable crawl timeout.
+Extract content from one or more URLs.
+
+| Parameter | Description |
+|-----------|-------------|
+| URLs | Comma-separated list of URLs to extract (required) |
+| Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards) |
+| Crawl Timeout | Timeout in seconds for page crawling, 1-60 (default: 30) |
 
 ### Research
 
-Get a comprehensive, cited answer to a complex question. The Research API performs multi-step investigation and returns a markdown answer with inline numbered citations and a list of sources.
+Get a comprehensive, cited answer to a complex question. Returns a markdown answer with inline numbered citations and a list of sources.
 
-**Research Effort** controls depth and speed:
+| Parameter | Description |
+|-----------|-------------|
+| Input | The research question (required) |
+| Research Effort | Controls depth and speed (see below, default: standard) |
+
+**Research Effort levels:**
 
 | Level | Description |
 |-------|-------------|
