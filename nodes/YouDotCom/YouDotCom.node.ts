@@ -9,7 +9,7 @@ import type {
 import { NodeApiError, NodeOperationError } from 'n8n-workflow'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.2.6'
+const PACKAGE_VERSION = '0.2.7'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
