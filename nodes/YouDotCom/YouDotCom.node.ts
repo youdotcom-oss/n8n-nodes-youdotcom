@@ -15,7 +15,7 @@ const PACKAGE_VERSION = '0.2.6'
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
 
 /**
- * You.com node for n8n - Search and Contents operations.
+ * You.com node for n8n - Search, Contents, and Research operations.
  *
  * NOTE: n8n framework requires class-based nodes that implement INodeType.
  */
@@ -28,7 +28,7 @@ export class YouDotCom implements INodeType {
     version: 1,
     usableAsTool: true,
     subtitle: '={{$parameter["operation"]}}',
-    description: 'Search the web and extract content from URLs using You.com APIs',
+    description: 'Search the web, extract content from URLs, and run multi-step research using You.com APIs',
     defaults: {
       name: 'You.com',
     },
@@ -69,6 +69,12 @@ export class YouDotCom implements INodeType {
             value: 'contents',
             description: 'Extract content from one or more URLs',
             action: 'Extract content from web pages',
+          },
+          {
+            name: 'Research',
+            value: 'research',
+            description: 'Get a comprehensive, cited answer to a complex question',
+            action: 'Research a complex question',
           },
         ],
         default: 'search',
@@ -356,6 +362,61 @@ export class YouDotCom implements INodeType {
           },
         ],
       },
+
+      // ====================
+      // Research Parameters
+      // ====================
+      {
+        displayName: 'Input',
+        name: 'input',
+        type: 'string',
+        required: true,
+        typeOptions: {
+          rows: 4,
+        },
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: '',
+        placeholder: 'e.g., Which global cities improved air quality the most over the past 10 years?',
+        description: 'The research question or complex query requiring in-depth investigation',
+      },
+      {
+        displayName: 'Research Effort',
+        name: 'researchEffort',
+        type: 'options',
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: 'standard',
+        description: 'Controls the depth and time spent on research',
+        options: [
+          {
+            name: 'Lite',
+            value: 'lite',
+            description: 'Quick answers for straightforward questions',
+          },
+          {
+            name: 'Standard',
+            value: 'standard',
+            description: 'Balanced speed and depth for most questions',
+          },
+          {
+            name: 'Deep',
+            value: 'deep',
+            description: 'More time researching and cross-referencing sources',
+          },
+          {
+            name: 'Exhaustive',
+            value: 'exhaustive',
+            description: 'Most thorough option for complex research tasks',
+          },
+        ],
+      },
     ],
   }
 
@@ -375,6 +436,12 @@ export class YouDotCom implements INodeType {
           returnData.push(...executionData)
         } else if (operation === 'contents') {
           const response = await YouDotCom.#executeContents(this, i)
+          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+            itemData: { item: i },
+          })
+          returnData.push(...executionData)
+        } else if (operation === 'research') {
+          const response = await YouDotCom.#executeResearch(this, i)
           const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
             itemData: { item: i },
           })
@@ -477,5 +544,35 @@ export class YouDotCom implements INodeType {
     })
 
     return rawResponse as IDataObject[]
+  }
+
+  /**
+   * Execute Research operation
+   *
+   * @param context - n8n execution context with helper methods
+   * @param itemIndex - Index of the current item being processed
+   * @returns Research answer with citations and sources from You.com API
+   */
+  static async #executeResearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+    const input = context.getNodeParameter('input', itemIndex) as string
+    const researchEffort = context.getNodeParameter('researchEffort', itemIndex) as string
+
+    const body: Record<string, string> = { input }
+
+    if (researchEffort) {
+      body.research_effort = researchEffort
+    }
+
+    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+      method: 'POST',
+      url: 'https://api.you.com/v1/research',
+      headers: {
+        'User-Agent': USER_AGENT,
+      },
+      body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
   }
 }

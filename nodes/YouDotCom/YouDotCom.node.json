@@ -15,10 +15,26 @@
       },
       {
         "url": "https://docs.you.com/api-reference/search/contents"
+      },
+      {
+        "url": "https://docs.you.com/api-reference/research"
       }
     ]
   },
-  "alias": ["search", "web search", "you", "youdotcom", "news", "ai search", "contents", "extract", "scrape", "crawl"],
+  "alias": [
+    "search",
+    "web search",
+    "you",
+    "youdotcom",
+    "news",
+    "ai search",
+    "contents",
+    "extract",
+    "scrape",
+    "crawl",
+    "research",
+    "deep research"
+  ],
   "subcategories": {
     "Utility": ["Data Transformation"]
   }

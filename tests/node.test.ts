@@ -9,7 +9,7 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * Test Strategy:
  * - Node description validation: Verify node metadata and configuration
  * - Credentials validation: Verify credential configuration
- * - Parameter validation: Verify all parameters for Search and Contents operations
+ * - Parameter validation: Verify all parameters for Search, Contents, and Research operations
  *
  * Note: Integration tests requiring actual n8n execution context are not included
  * as they would require spinning up an n8n instance.
@@ -76,6 +76,7 @@ describe('YouDotCom Node', () => {
       const desc = node.description.description?.toLowerCase() ?? ''
       expect(desc).toContain('search')
       expect(desc).toContain('content')
+      expect(desc).toContain('research')
     })
   })
 
@@ -105,9 +106,17 @@ describe('YouDotCom Node', () => {
       )
     })
 
-    test('has exactly two operations', () => {
+    test('has research operation', () => {
       const operationProperty = getOperationProperty()
-      expect(operationProperty?.options?.length).toBe(2)
+      const researchOption = operationProperty?.options?.find((o) => o.value === 'research')
+      expect(researchOption).toBeDefined()
+      expect(researchOption?.name).toBe('Research')
+      expect((researchOption as INodePropertyOptions & { action?: string })?.action).toBe('Research a complex question')
+    })
+
+    test('has exactly three operations', () => {
+      const operationProperty = getOperationProperty()
+      expect(operationProperty?.options?.length).toBe(3)
     })
   })
 
@@ -268,6 +277,44 @@ describe('YouDotCom Node', () => {
       expect(timeoutOption?.type).toBe('number')
       expect(timeoutOption?.typeOptions?.minValue).toBe(1)
       expect(timeoutOption?.typeOptions?.maxValue).toBe(60)
+    })
+  })
+
+  describe('Research Parameters', () => {
+    test('has input parameter as required', () => {
+      const inputProperty = node.description.properties.find((p) => p.name === 'input')
+      expect(inputProperty).toBeDefined()
+      expect(inputProperty?.required).toBe(true)
+      expect(inputProperty?.type).toBe('string')
+    })
+
+    test('input parameter is only shown for research operation', () => {
+      const inputProperty = node.description.properties.find((p) => p.name === 'input')
+      expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('has research effort option with all levels', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort') as
+        | PropertyWithOptions
+        | undefined
+      expect(effortProperty).toBeDefined()
+      expect(effortProperty?.type).toBe('options')
+
+      const effortValues = effortProperty?.options?.map((o) => o.value)
+      expect(effortValues).toContain('lite')
+      expect(effortValues).toContain('standard')
+      expect(effortValues).toContain('deep')
+      expect(effortValues).toContain('exhaustive')
+    })
+
+    test('research effort defaults to standard', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort')
+      expect(effortProperty?.default).toBe('standard')
+    })
+
+    test('research effort is only shown for research operation', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort')
+      expect(effortProperty?.displayOptions?.show?.operation).toEqual(['research'])
     })
   })
 

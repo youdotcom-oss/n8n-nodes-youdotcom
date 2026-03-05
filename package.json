@@ -1,7 +1,7 @@
 {
   "name": "@youdotcom-oss/n8n-nodes-youdotcom",
   "version": "0.2.6",
-  "description": "n8n community node for You.com APIs - Search and Contents extraction",
+  "description": "n8n community node for You.com APIs - Search, Contents extraction, and Research",
   "license": "MIT",
   "engines": {
     "node": ">=18"
