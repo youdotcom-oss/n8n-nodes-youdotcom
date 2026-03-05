@@ -6,7 +6,7 @@
   "resources": {
     "credentialDocumentation": [
       {
-        "url": "https://docs.you.com/get-started/quickstart"
+        "url": "https://docs.you.com/quickstart"
       }
     ],
     "primaryDocumentation": [
@@ -14,7 +14,7 @@
         "url": "https://docs.you.com/api-reference/search"
       },
       {
-        "url": "https://docs.you.com/api-reference/search/contents"
+        "url": "https://docs.you.com/api-reference/contents"
       },
       {
         "url": "https://docs.you.com/api-reference/research"
