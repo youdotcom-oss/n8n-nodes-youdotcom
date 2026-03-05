@@ -1,109 +1,90 @@
-# n8n-nodes-youdotcom
+# @youdotcom-oss/n8n-nodes-youdotcom
 
-An n8n community node for integrating [You.com APIs](https://you.com/apis) into your n8n workflows. Search the web and extract content from URLs.
+Add real time web search, page content extraction, and AI powered deep research to your n8n workflows with the [You.com](https://you.com) API.
+
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
+
+[Installation](#installation) | [Operations](#operations) | [Credentials](#credentials) | [Usage](#usage) | [Resources](#resources)
 
 ## Installation
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-```bash
-npm install @youdotcom-oss/n8n-nodes-youdotcom
-```
-
-Or install via the n8n UI:
-
-1. Go to **Settings > Community Nodes**
-2. Select **Install**
-3. Enter `@youdotcom-oss/n8n-nodes-youdotcom`
-4. Agree to the risks and select **Install**
-
 ## Operations
 
 ### Search
 
-Search the web and news using You.com's search API.
+Search the web and news with up to date results. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`) and geographic/language filtering.
 
-| Parameter        | Required | Description                                             |
-| ---------------- | -------- | ------------------------------------------------------- |
-| Query            | Yes      | The search query (supports search operators, see below) |
-| Count            | No       | Maximum number of results per section (1-100)           |
-| Country          | No       | Country code for geographical focus (e.g., US, GB, DE)  |
-| Freshness        | No       | Filter by recency: day, week, month, or year            |
-| Language         | No       | Language of results (BCP 47 format)                     |
-| Livecrawl        | No       | Fetch full page content for web, news, or all results   |
-| Livecrawl Format | No       | Format for livecrawled content (HTML or Markdown)       |
-| Offset           | No       | Pagination offset (0-9)                                 |
-| Safe Search      | No       | Content moderation: off, moderate, or strict            |
+Great for monitoring mentions, pulling recent news, or feeding live data into AI agent workflows.
 
-**Search operators:**
-
-Include these directly in your query to refine results. See [search operators documentation](https://docs.you.com/search/search-operators) for details.
-
-| Operator   | Example                 | Description                                        |
-| ---------- | ----------------------- | -------------------------------------------------- |
-| `site:`    | `site:github.com`       | Restrict to a specific domain (including subdomains) |
-| `filetype:`| `filetype:pdf`          | Filter by file type                                |
-| `+`        | `+GAAP`                 | Require exact term in results                      |
-| `-`        | `-marketing`            | Exclude exact term from results                    |
-| `AND`      | `Python AND PyTorch`    | Logical AND to combine expressions                 |
-| `OR`       | `Python OR PyTorch`     | Logical OR to combine expressions                  |
-| `NOT`      | `NOT site:example.com`  | Negate an expression                               |
-
-**Example:** `machine learning (Python OR PyTorch) -TensorFlow filetype:pdf` searches for ML content about Python or PyTorch, excluding TensorFlow, in PDF format.
+| Parameter | Description |
+|-----------|-------------|
+| Query | The search query (required) |
+| Count | Max results per section, 1-100 (default: 10) |
+| Country | Two-letter country code to focus results geographically |
+| Freshness | Filter by recency: day, week, month, or year |
+| Language | BCP 47 language code for results (default: EN) |
+| Livecrawl | Fetch full page content for web, news, or all results |
+| Livecrawl Format | Format for livecrawled content: markdown or HTML |
+| Offset | Pagination offset, 0-9 |
+| Safe Search | Content filter: off, moderate, or strict |
 
 ### Get Contents
 
-Extract content from one or more URLs. Returns clean text, HTML, or structured metadata.
+Extract clean, structured content from one or more web pages. Returns page text as markdown or HTML, plus metadata like JSON-LD, OpenGraph, and Twitter Cards.
 
-| Parameter     | Required | Description                                              |
-| ------------- | -------- | -------------------------------------------------------- |
-| URLs          | Yes      | Comma-separated list of URLs to extract content from     |
-| Formats       | No       | Output formats: Markdown, HTML, and/or Metadata          |
-| Crawl Timeout | No       | Timeout in seconds for page crawling (1-60)              |
+Useful for scraping product pages, pulling article text, or extracting structured data from any URL.
 
-**Output formats:**
+| Parameter | Description |
+|-----------|-------------|
+| URLs | Comma-separated list of URLs to extract (required) |
+| Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards) |
+| Crawl Timeout | Timeout in seconds for page crawling, 1-60 (default: 30) |
 
-- **Markdown** - Clean text content, ideal for LLM processing
-- **HTML** - Full HTML with layout preserved
-- **Metadata** - Structured data (JSON-LD, OpenGraph, Twitter Cards)
+### Research
+
+Get a comprehensive, cited answer to a complex question. The Research API searches the web, reads multiple sources, and synthesizes a detailed markdown response with inline numbered citations.
+
+Perfect for competitive analysis, market research, technical due diligence, or any question that needs more than a simple search result.
+
+| Parameter | Description |
+|-----------|-------------|
+| Input | The research question (required) |
+| Research Effort | Controls depth and speed (see below, default: standard) |
+
+**Research Effort levels:**
+
+| Level | Description |
+|-------|-------------|
+| Lite | Quick answers for straightforward questions |
+| Standard | Balanced speed and depth (default) |
+| Deep | More time researching and cross-referencing sources |
+| Exhaustive | Most thorough option for complex research tasks |
 
 ## Credentials
 
-1. Visit [you.com/platform/api-keys](https://you.com/platform/api-keys) to get an API key
-2. In n8n, go to **Credentials > New Credential**
-3. Search for "You.com API"
-4. Enter your API key and save
+1. Go to [you.com/platform/api-keys](https://you.com/platform/api-keys) to get an API key
+2. In n8n, go to Credentials and create a new "You.com API" credential
+3. Paste your API key and save
 
-## Example Use Cases
+## Usage
 
-- **Research workflows**: Search for information and extract full content from top results
-- **Content aggregation**: Monitor news across topics with customizable filters
-- **Data enrichment**: Extract metadata from URLs in your workflows
+1. Add the "You.com" node to your workflow
+2. Select an operation (Search, Get Contents, or Research)
+3. Configure the parameters for your chosen operation
+4. Run the workflow
 
-## Development
-
-```bash
-# Install dependencies
-bun install
-
-# Build the package
-bun run build
-
-# Run tests
-bun test
-
-# Linting, formatting, and type checking
-bun run check
-```
+This node also works as a tool for [AI agents in n8n](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.agent/). Connect it to an agent node and let the agent decide when to search the web, extract page content, or run deep research.
 
 ## Resources
 
-- [You.com API Documentation](https://docs.you.com/)
-- [Search API Reference](https://docs.you.com/api-reference/search/v1-search)
-- [Search Operators](https://docs.you.com/search/search-operators)
-- [Contents API Reference](https://docs.you.com/api-reference/search/contents)
-- [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
+- [You.com API docs](https://docs.you.com/)
+- [Search API reference](https://docs.you.com/api-reference/search)
+- [Contents API reference](https://docs.you.com/api-reference/contents)
+- [Research API reference](https://docs.you.com/api-reference/research)
+- [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
 
 ## License
 
-MIT
+[MIT](LICENSE)
