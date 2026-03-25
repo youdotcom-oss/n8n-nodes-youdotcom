@@ -6,7 +6,7 @@ import type {
   INodeTypeDescription,
   JsonObject,
 } from 'n8n-workflow'
-import { NodeApiError, NodeOperationError } from 'n8n-workflow'
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
 const PACKAGE_VERSION = '0.2.7'
@@ -32,22 +32,14 @@ export class YouDotCom implements INodeType {
     defaults: {
       name: 'You.com',
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: 'youDotComApi',
         required: true,
       },
     ],
-    requestDefaults: {
-      baseURL: 'https://ydc-index.io',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': USER_AGENT,
-      },
-    },
     properties: [
       // ====================
       // Operation Selection
@@ -59,12 +51,6 @@ export class YouDotCom implements INodeType {
         noDataExpression: true,
         options: [
           {
-            name: 'Search',
-            value: 'search',
-            description: 'Search the web and news using You.com',
-            action: 'Search the web and news',
-          },
-          {
             name: 'Get Contents',
             value: 'contents',
             description: 'Extract content from one or more URLs',
@@ -75,6 +61,12 @@ export class YouDotCom implements INodeType {
             value: 'research',
             description: 'Get a comprehensive, cited answer to a complex question',
             action: 'Research a complex question',
+          },
+          {
+            name: 'Search',
+            value: 'search',
+            description: 'Search the web and news using You.com',
+            action: 'Search the web and news',
           },
         ],
         default: 'search',
