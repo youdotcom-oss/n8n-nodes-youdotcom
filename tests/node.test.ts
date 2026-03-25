@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
-import { NodeConnectionTypes } from 'n8n-workflow'
 import type { INodePropertyOptions } from 'n8n-workflow'
+import { NodeConnectionTypes } from 'n8n-workflow'
 import { YouDotComApi } from '../credentials/YouDotComApi.credentials.ts'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
