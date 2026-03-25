@@ -149,7 +149,7 @@ jobs:
           echo "Updated PACKAGE_VERSION in YouDotCom.node.ts to $VERSION"
 
           rm -rf bun.lock node_modules
-          bun install
+          bun install --ignore-scripts
           echo "✅ Lock file updated"
 
           PACKAGE_VERSION=$(jq -r '.version' package.json)
