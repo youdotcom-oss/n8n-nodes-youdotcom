@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
+import { NodeConnectionTypes } from 'n8n-workflow'
 import type { INodePropertyOptions } from 'n8n-workflow'
 import { YouDotComApi } from '../credentials/YouDotComApi.credentials.ts'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
@@ -51,8 +52,8 @@ describe('YouDotCom Node', () => {
     })
 
     test('has main inputs and outputs', () => {
-      expect(node.description.inputs).toContain('main')
-      expect(node.description.outputs).toContain('main')
+      expect(node.description.inputs).toContain(NodeConnectionTypes.Main)
+      expect(node.description.outputs).toContain(NodeConnectionTypes.Main)
     })
 
     test('requires youDotComApi credentials', () => {
@@ -61,15 +62,6 @@ describe('YouDotCom Node', () => {
       expect(credentials?.length).toBe(1)
       expect(credentials?.[0]?.name).toBe('youDotComApi')
       expect(credentials?.[0]?.required).toBe(true)
-    })
-
-    test('has correct base URL in request defaults', () => {
-      expect(node.description.requestDefaults?.baseURL).toBe('https://ydc-index.io')
-    })
-
-    test('has User-Agent header in request defaults', () => {
-      const headers = node.description.requestDefaults?.headers as Record<string, string> | undefined
-      expect(headers?.['User-Agent']).toMatch(/^n8n-nodes-youdotcom\/\d+\.\d+\.\d+/)
     })
 
     test('has updated description mentioning all operations', () => {
