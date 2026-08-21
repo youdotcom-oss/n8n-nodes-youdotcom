@@ -10,7 +10,7 @@ import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workf
 import { buildClientInfoHeader } from './Attribution.ts'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.4.0'
+const PACKAGE_VERSION = '0.5.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
@@ -20,6 +20,21 @@ function toStringArray(value: unknown): string[] {
   if (value == null) return []
   const arr = Array.isArray(value) ? value : [value]
   return arr.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
+}
+
+/** Normalize URLs from a multi-string or CSV string n8n value to a trimmed string[]. */
+function toUrlList(value: unknown): string[] {
+  if (value == null) return []
+  const items = Array.isArray(value) ? value : [value]
+  const urls: string[] = []
+  for (const item of items) {
+    if (typeof item !== 'string') continue
+    for (const part of item.split(',')) {
+      const trimmed = part.trim()
+      if (trimmed) urls.push(trimmed)
+    }
+  }
+  return urls
 }
 
 /**
@@ -404,6 +419,9 @@ export class YouDotCom implements INodeType {
         displayName: 'URLs',
         name: 'urls',
         type: 'string',
+        typeOptions: {
+          multipleValues: true,
+        },
         required: true,
         displayOptions: {
           show: {
@@ -411,8 +429,9 @@ export class YouDotCom implements INodeType {
           },
         },
         default: '',
-        placeholder: 'https://example.com, https://example.org',
-        description: 'Comma-separated list of URLs to extract content from',
+        placeholder: 'https://example.com',
+        description:
+          'One or more URLs to extract content from. Use the + button to add multiple URLs, or enter a comma-separated list.',
       },
       {
         displayName: 'Contents Options',
@@ -426,6 +445,17 @@ export class YouDotCom implements INodeType {
           },
         },
         options: [
+          {
+            displayName: 'Crawl Timeout',
+            name: 'crawl_timeout',
+            type: 'number',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 60,
+            },
+            default: 10,
+            description: 'Maximum time in seconds to wait for page content (1-60, default 10)',
+          },
           {
             displayName: 'Formats',
             name: 'formats',
@@ -451,15 +481,15 @@ export class YouDotCom implements INodeType {
             ],
           },
           {
-            displayName: 'Crawl Timeout',
-            name: 'crawl_timeout',
+            displayName: 'Max Age',
+            name: 'max_age',
             type: 'number',
             typeOptions: {
-              minValue: 1,
-              maxValue: 60,
+              minValue: 0,
             },
-            default: 30,
-            description: 'Timeout in seconds for page crawling (1-60)',
+            default: 0,
+            description:
+              'Maximum allowed age of cached content in seconds (0 or greater). 0 means always re-fetch. Leave unset for no age limit (use cache regardless of age).',
           },
         ],
       },
@@ -680,14 +710,11 @@ export class YouDotCom implements INodeType {
     itemIndex: number,
     clientInfoHeader: string,
   ): Promise<IDataObject[]> {
-    const urlsString = context.getNodeParameter('urls', itemIndex) as string
+    const urlsRaw = context.getNodeParameter('urls', itemIndex)
     const options = context.getNodeParameter('contentsOptions', itemIndex) as Record<string, unknown>
 
-    // Parse comma-separated URLs and trim whitespace
-    const urls = urlsString
-      .split(',')
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0)
+    // Normalize URLs from multi-string or CSV string input
+    const urls = toUrlList(urlsRaw)
 
     if (urls.length === 0) {
       throw new NodeOperationError(context.getNode(), 'At least one URL is required', { itemIndex })
@@ -702,6 +729,9 @@ export class YouDotCom implements INodeType {
     }
     if (options.crawl_timeout) {
       body.crawl_timeout = options.crawl_timeout
+    }
+    if (options.max_age != null) {
+      body.max_age = options.max_age
     }
 
     const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {

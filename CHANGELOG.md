@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Contents parity with You.com Python SDK 3.1.2.** The Get Contents operation now supports the following:
+  - **Multi-URL input.** The URLs field now supports multiple values via the + button. Comma-separated input is still accepted as a fallback for backward compatibility.
+  - **Max Age.** New `max_age` parameter (0 or greater) controlling the maximum allowed age of cached content. 0 means always re-fetch; leave unset for no age limit (use cache regardless of age).
 - **Search parity with You.com Python SDK 3.1.2.** The Search operation now sends a `POST` request with a JSON body (matching the SDK) instead of a `GET` with query string, enabling the following new parameters:
   - **Include Domains**, **Exclude Domains**, **Boost Domains** — multi-string domain filters (up to 500 each). Include Domains cannot combine with Exclude Domains or Boost Domains; the node blocks this at execution time with a clear error rather than round-tripping a 422.
   - **Extraction** collection with **Extraction Mode** (`highlights` or `full_page`) and a **Full Page** sub-collection containing **Extraction Formats** (`markdown`, `html`). When Extraction is set, the deprecated Livecrawl options are omitted from the request.
@@ -16,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Bumped `package.json` version to 0.5.0 and the in-source `PACKAGE_VERSION` constant to match.
+- **Contents Crawl Timeout default changed from 30 to 10**, matching the Python SDK default.
 - Bumped `package.json` version to 0.4.0 and the in-source `PACKAGE_VERSION` constant to match.
 - **Livecrawl and Livecrawl Format are marked deprecated.** Use the new Extraction collection instead. When both Extraction and Livecrawl are set, Extraction takes precedence and Livecrawl is omitted.
 - Bumped `package.json` version to 0.3.0 and the in-source `PACKAGE_VERSION` constant to match.

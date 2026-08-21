@@ -50,9 +50,10 @@ Useful for scraping product pages, pulling article text, or extracting structure
 
 | Parameter | Description |
 |-----------|-------------|
-| URLs | Comma-separated list of URLs to extract (required) |
+| URLs | One or more URLs to extract (required). Use the + button to add multiple URLs, or enter a comma-separated list |
+| Crawl Timeout | Max seconds to wait for page content, 1-60 (default: 10) |
 | Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards) |
-| Crawl Timeout | Timeout in seconds for page crawling, 1-60 (default: 30) |
+| Max Age | Maximum allowed age of cached content in seconds (0 or greater). 0 means always re-fetch. Leave unset for no age limit |
 
 ### Research
 

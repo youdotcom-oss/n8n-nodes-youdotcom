@@ -330,6 +330,24 @@ describe('YouDotCom Node', () => {
       expect(timeoutOption?.typeOptions?.minValue).toBe(1)
       expect(timeoutOption?.typeOptions?.maxValue).toBe(60)
     })
+
+    test('crawl timeout defaults to 10 (SDK parity)', () => {
+      const timeoutOption = getContentsOption('Crawl Timeout')
+      expect(timeoutOption?.default).toBe(10)
+    })
+
+    test('urls parameter supports multiple values', () => {
+      const urlsProperty = node.description.properties.find((p) => p.name === 'urls')
+      expect(urlsProperty?.typeOptions?.multipleValues).toBe(true)
+    })
+
+    test('has max_age option with minValue 0', () => {
+      const maxAgeOption = getContentsOption('Max Age')
+      expect(maxAgeOption).toBeDefined()
+      expect(maxAgeOption?.name).toBe('max_age')
+      expect(maxAgeOption?.type).toBe('number')
+      expect(maxAgeOption?.typeOptions?.minValue).toBe(0)
+    })
   })
 
   describe('Research Parameters', () => {
