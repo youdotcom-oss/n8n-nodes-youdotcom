@@ -22,9 +22,11 @@ interface PropertyWithOptions {
   displayName: string
   type: string
   options?: INodePropertyOptions[]
-  typeOptions?: { minValue?: number; maxValue?: number; password?: boolean }
+  typeOptions?: { minValue?: number; maxValue?: number; password?: boolean; multipleValues?: boolean }
   displayOptions?: { show?: Record<string, string[]> }
   required?: boolean
+  default?: unknown
+  description?: string
 }
 
 describe('YouDotCom Node', () => {
@@ -220,6 +222,64 @@ describe('YouDotCom Node', () => {
       expect(safesearchValues).toContain('off')
       expect(safesearchValues).toContain('moderate')
       expect(safesearchValues).toContain('strict')
+    })
+
+    test('has include_domains / exclude_domains / boost_domains as multi-string inputs', () => {
+      for (const name of ['include_domains', 'exclude_domains', 'boost_domains']) {
+        const opt = getSearchOption(
+          name === 'include_domains'
+            ? 'Include Domains'
+            : name === 'exclude_domains'
+              ? 'Exclude Domains'
+              : 'Boost Domains',
+        )
+        expect(opt, `expected search option for ${name}`).toBeDefined()
+        expect(opt?.name).toBe(name)
+        expect(opt?.type).toBe('string')
+        expect(opt?.typeOptions?.multipleValues).toBe(true)
+      }
+    })
+
+    test('has extraction collection with extraction_mode and full_page.extraction_formats', () => {
+      const extraction = getSearchOption('Extraction')
+      expect(extraction).toBeDefined()
+      expect(extraction?.name).toBe('extraction')
+      expect(extraction?.type).toBe('collection')
+      const exOptions = extraction?.options as unknown as PropertyWithOptions[] | undefined
+      const mode = exOptions?.find((o) => o.name === 'extraction_mode')
+      expect(mode).toBeDefined()
+      expect(mode?.type).toBe('options')
+      const modeValues = mode?.options?.map((o) => o.value)
+      expect(modeValues).toContain('highlights')
+      expect(modeValues).toContain('full_page')
+      const fullPage = exOptions?.find((o) => o.name === 'full_page')
+      expect(fullPage).toBeDefined()
+      expect(fullPage?.type).toBe('collection')
+      // full_page sub-collection only shows when extraction_mode == full_page
+      expect(fullPage?.displayOptions?.show?.extraction_mode).toEqual(['full_page'])
+      const fpOptions = fullPage?.options as unknown as PropertyWithOptions[] | undefined
+      const formats = fpOptions?.find((o) => o.name === 'extraction_formats')
+      expect(formats).toBeDefined()
+      expect(formats?.type).toBe('multiOptions')
+      const formatValues = formats?.options?.map((o) => o.value)
+      expect(formatValues).toContain('markdown')
+      expect(formatValues).toContain('html')
+    })
+
+    test('has crawl_timeout option with constraints 1-60 default 10', () => {
+      const ct = getSearchOption('Crawl Timeout')
+      expect(ct).toBeDefined()
+      expect(ct?.name).toBe('crawl_timeout')
+      expect(ct?.type).toBe('number')
+      expect(ct?.typeOptions?.minValue).toBe(1)
+      expect(ct?.typeOptions?.maxValue).toBe(60)
+      expect(ct?.default).toBe(10)
+    })
+
+    test('livecrawl option is marked deprecated', () => {
+      const livecrawl = getSearchOption('Livecrawl')
+      expect(livecrawl).toBeDefined()
+      expect(livecrawl?.description?.toLowerCase()).toContain('deprecated')
     })
   })
 

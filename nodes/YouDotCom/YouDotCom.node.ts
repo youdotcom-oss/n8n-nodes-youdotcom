@@ -10,10 +10,17 @@ import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workf
 import { buildClientInfoHeader } from './Attribution.ts'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.3.0'
+const PACKAGE_VERSION = '0.4.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
+
+/** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
+function toStringArray(value: unknown): string[] {
+  if (value == null) return []
+  const arr = Array.isArray(value) ? value : [value]
+  return arr.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
+}
 
 /**
  * You.com node for n8n - Search, Contents, and Research operations.
@@ -104,6 +111,17 @@ export class YouDotCom implements INodeType {
         },
         options: [
           {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Boost ranking for these domains without excluding others (up to 500). Cannot combine with Include Domains. Can combine with Exclude Domains.',
+          },
+          {
             displayName: 'Count',
             name: 'count',
             type: 'number',
@@ -161,6 +179,84 @@ export class YouDotCom implements INodeType {
             ],
           },
           {
+            displayName: 'Crawl Timeout',
+            name: 'crawl_timeout',
+            type: 'number',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 60,
+            },
+            default: 10,
+            description:
+              'Maximum seconds to wait for page content when extraction (Full Page) or the deprecated Livecrawl is enabled (1-60, default 10). Ignored when Extraction Mode is Highlights.',
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Filter out results from these domains (up to 500). Cannot combine with Include Domains. Can combine with Boost Domains.',
+          },
+          {
+            displayName: 'Extraction',
+            name: 'extraction',
+            type: 'collection',
+            placeholder: 'Add extraction',
+            default: {},
+            description:
+              'Controls how page content is attached to each result. Preferred over the deprecated Livecrawl options; when set, Livecrawl is omitted from the request.',
+            options: [
+              {
+                displayName: 'Extraction Mode',
+                name: 'extraction_mode',
+                type: 'options',
+                default: 'highlights',
+                description: 'Highlights returns query-relevant excerpts; full_page returns full HTML/Markdown',
+                options: [
+                  {
+                    name: 'Highlights',
+                    value: 'highlights',
+                    description: 'Query-relevant excerpts in results.web[].contents.highlights',
+                  },
+                  {
+                    name: 'Full Page',
+                    value: 'full_page',
+                    description: 'Full HTML/Markdown in results.web[].contents.html / .markdown',
+                  },
+                ],
+              },
+              {
+                displayName: 'Full Page',
+                name: 'full_page',
+                type: 'collection',
+                placeholder: 'Add full page options',
+                default: {},
+                displayOptions: {
+                  show: {
+                    extraction_mode: ['full_page'],
+                  },
+                },
+                options: [
+                  {
+                    displayName: 'Extraction Formats',
+                    name: 'extraction_formats',
+                    type: 'multiOptions',
+                    default: ['markdown'],
+                    description: 'Format(s) returned for each result (default markdown)',
+                    options: [
+                      { name: 'Markdown', value: 'markdown' },
+                      { name: 'HTML', value: 'html' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
             displayName: 'Freshness',
             name: 'freshness',
             type: 'options',
@@ -173,6 +269,17 @@ export class YouDotCom implements INodeType {
               { name: 'Past Week', value: 'week' },
               { name: 'Past Year', value: 'year' },
             ],
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Restrict results to these domains (strict allowlist, up to 500). Cannot combine with Exclude Domains or Boost Domains.',
           },
           {
             displayName: 'Language',
@@ -238,7 +345,7 @@ export class YouDotCom implements INodeType {
             name: 'livecrawl',
             type: 'options',
             default: '',
-            description: 'Fetch and return full page content for search results',
+            description: 'Deprecated; use Extraction instead. Fetch and return full page content for search results.',
             options: [
               { name: 'None', value: '' },
               { name: 'Web Results Only', value: 'web' },
@@ -251,7 +358,8 @@ export class YouDotCom implements INodeType {
             name: 'livecrawl_formats',
             type: 'options',
             default: 'markdown',
-            description: 'Format for livecrawled content',
+            description:
+              'Deprecated; use Extraction (Full Page, Extraction Formats) instead. Format for livecrawled content.',
             displayOptions: {
               show: {
                 livecrawl: ['web', 'news', 'all'],
@@ -493,25 +601,67 @@ export class YouDotCom implements INodeType {
     const query = context.getNodeParameter('query', itemIndex) as string
     const options = context.getNodeParameter('searchOptions', itemIndex) as Record<string, unknown>
 
-    const qs: Record<string, string | number> = { query }
+    // Domain filters (multi-string). include_domains cannot combine with
+    // exclude_domains or boost_domains (the API returns 422); exclude can
+    // combine with boost. Block at execution rather than round-tripping a 422.
+    const includeDomains = toStringArray(options.include_domains)
+    const excludeDomains = toStringArray(options.exclude_domains)
+    const boostDomains = toStringArray(options.boost_domains)
+    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
+      throw new NodeOperationError(
+        context.getNode(),
+        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
+        { itemIndex },
+      )
+    }
 
-    if (options.count) qs.count = options.count as number
-    if (options.country) qs.country = options.country as string
-    if (options.freshness) qs.freshness = options.freshness as string
-    if (options.language) qs.language = options.language as string
-    if (options.livecrawl) qs.livecrawl = options.livecrawl as string
-    if (options.livecrawl_formats) qs.livecrawl_formats = options.livecrawl_formats as string
-    if (options.offset !== undefined) qs.offset = options.offset as number
-    if (options.safesearch) qs.safesearch = options.safesearch as string
+    // extraction takes precedence over the deprecated livecrawl/livecrawl_formats.
+    const extraction = options.extraction as
+      | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
+      | undefined
+    const extractionMode = extraction?.extraction_mode
+    const hasExtraction = extractionMode != null
+
+    const body: Record<string, unknown> = { query }
+
+    if (options.count) body.count = options.count as number
+    if (options.country) body.country = options.country as string
+    if (options.freshness) body.freshness = options.freshness as string
+    if (options.language) body.language = options.language as string
+    if (options.offset !== undefined) body.offset = options.offset as number
+    if (options.safesearch) body.safesearch = options.safesearch as string
+    if (includeDomains.length > 0) body.include_domains = includeDomains
+    if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
+    if (boostDomains.length > 0) body.boost_domains = boostDomains
+
+    if (hasExtraction) {
+      const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
+      const fullPage = extraction?.full_page
+      if (extractionMode === 'full_page' && fullPage?.extraction_formats) {
+        extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
+      }
+      body.extraction = extractionBody
+    } else if (options.livecrawl) {
+      // Deprecated; omitted when extraction is set.
+      body.livecrawl = options.livecrawl as string
+      if (options.livecrawl_formats) body.livecrawl_formats = [options.livecrawl_formats as string]
+    }
+
+    // crawl_timeout is invalid alongside extraction_mode == "highlights" (the
+    // server rejects it); omit it in that case. Otherwise send when set.
+    const stripCrawlTimeout = extractionMode === 'highlights'
+    if (options.crawl_timeout != null && !stripCrawlTimeout) {
+      body.crawl_timeout = options.crawl_timeout as number
+    }
 
     const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
-      method: 'GET',
+      method: 'POST',
       url: 'https://ydc-index.io/v1/search',
       headers: {
         'User-Agent': USER_AGENT,
         'X-Client-Info': clientInfoHeader,
       },
-      qs,
+      body,
       json: true,
     })
 

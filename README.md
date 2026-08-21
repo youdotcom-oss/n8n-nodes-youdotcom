@@ -14,21 +14,33 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ### Search
 
-Search the web and news with up to date results. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`) and geographic/language filtering.
+Search the web and news with up to date results. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`), geographic/language filtering, domain allowlists/excludes/boosts, and content extraction (highlights or full page).
 
 Great for monitoring mentions, pulling recent news, or feeding live data into AI agent workflows.
 
 | Parameter | Description |
 |-----------|-------------|
 | Query | The search query (required) |
+| Boost Domains | Boost ranking for these domains without excluding others (up to 500). Cannot combine with Include Domains |
 | Count | Max results per section, 1-100 (default: 10) |
 | Country | Two-letter country code to focus results geographically |
+| Crawl Timeout | Max seconds to wait for page content with extraction or livecrawl, 1-60 (default: 10). Ignored when Extraction Mode is Highlights |
+| Exclude Domains | Filter out results from these domains (up to 500). Cannot combine with Include Domains |
+| Extraction | Controls how page content is attached to each result. Preferred over the deprecated Livecrawl options; when set, Livecrawl is omitted |
 | Freshness | Filter by recency: day, week, month, or year |
+| Include Domains | Restrict results to these domains, strict allowlist (up to 500). Cannot combine with Exclude Domains or Boost Domains |
 | Language | BCP 47 language code for results (default: EN) |
-| Livecrawl | Fetch full page content for web, news, or all results |
-| Livecrawl Format | Format for livecrawled content: markdown or HTML |
+| Livecrawl | Deprecated; use Extraction instead. Fetch full page content for web, news, or all results |
+| Livecrawl Format | Deprecated; use Extraction (Full Page, Extraction Formats) instead. Format for livecrawled content: markdown or HTML |
 | Offset | Pagination offset, 0-9 |
 | Safe Search | Content filter: off, moderate, or strict |
+
+**Extraction sub-options:**
+
+| Sub-option | Description |
+|------------|-------------|
+| Extraction Mode | `highlights` returns query-relevant excerpts; `full_page` returns full HTML/Markdown (default: highlights) |
+| Full Page > Extraction Formats | Format(s) returned for each result: markdown, HTML (default: markdown). Only shown when Extraction Mode is Full Page |
 
 ### Get Contents
 
