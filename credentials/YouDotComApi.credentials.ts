@@ -23,6 +23,38 @@ export class YouDotComApi implements ICredentialType {
       description:
         'Your You.com API key. Get one at <a href="https://you.com/platform/api-keys" target="_blank">you.com/platform/api-keys</a>',
     },
+    {
+      displayName: 'App Name',
+      name: 'appName',
+      type: 'string',
+      default: '',
+      description:
+        'Optional. Identifies your application in the X-Client-Info attribution header as client=<name>[/<version>]. Must be printable ASCII with no semicolons or slashes. Leave blank to send the channel-only header.',
+    },
+    {
+      displayName: 'App Version',
+      name: 'appVersion',
+      type: 'string',
+      default: '',
+      description:
+        'Optional. Paired with App Name as client=<name>/<version>. Requires App Name. Must be printable ASCII with no semicolons or slashes.',
+    },
+    {
+      displayName: 'App Title',
+      name: 'appTitle',
+      type: 'string',
+      default: '',
+      description:
+        'Optional. Caller-facing application title, sent as the title= segment. Must be printable ASCII with no semicolons.',
+    },
+    {
+      displayName: 'App URL',
+      name: 'appUrl',
+      type: 'string',
+      default: '',
+      description:
+        'Optional. Caller-facing application URL, sent as the url= segment. Must be printable ASCII with no semicolons.',
+    },
   ]
 
   authenticate: IAuthenticateGeneric = {

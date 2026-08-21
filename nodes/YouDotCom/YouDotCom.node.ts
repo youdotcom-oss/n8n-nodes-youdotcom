@@ -7,9 +7,10 @@ import type {
   JsonObject,
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
+import { buildClientInfoHeader } from './Attribution.ts'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.2.9'
+const PACKAGE_VERSION = '0.3.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
@@ -416,24 +417,43 @@ export class YouDotCom implements INodeType {
     const items = this.getInputData()
     const returnData: INodeExecutionData[] = []
 
+    // Build the X-Client-Info attribution header once from the credential.
+    // The builder is permissive on the version-without-name pairing (it drops
+    // client=), so enforce that guard here, mirroring the Python SDK's You.__init__.
+    const credentials = await this.getCredentials('youDotComApi')
+    const appName = (credentials.appName as string | undefined) ?? ''
+    const appVersion = (credentials.appVersion as string | undefined) ?? ''
+    if (appVersion && !appName) {
+      throw new NodeOperationError(
+        this.getNode(),
+        'App Version requires App Name. The X-Client-Info header emits them together as client=<name>/<version>, so a version with no name has nowhere to go.',
+      )
+    }
+    const clientInfoHeader = buildClientInfoHeader({
+      appName,
+      appVersion,
+      appTitle: (credentials.appTitle as string | undefined) ?? '',
+      appUrl: (credentials.appUrl as string | undefined) ?? '',
+    })
+
     for (let i = 0; i < items.length; i++) {
       try {
         const operation = this.getNodeParameter('operation', i)
 
         if (operation === 'search') {
-          const response = await YouDotCom.#executeSearch(this, i)
+          const response = await YouDotCom.#executeSearch(this, i, clientInfoHeader)
           const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
             itemData: { item: i },
           })
           returnData.push(...executionData)
         } else if (operation === 'contents') {
-          const response = await YouDotCom.#executeContents(this, i)
+          const response = await YouDotCom.#executeContents(this, i, clientInfoHeader)
           const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
             itemData: { item: i },
           })
           returnData.push(...executionData)
         } else if (operation === 'research') {
-          const response = await YouDotCom.#executeResearch(this, i)
+          const response = await YouDotCom.#executeResearch(this, i, clientInfoHeader)
           const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
             itemData: { item: i },
           })
@@ -465,7 +485,11 @@ export class YouDotCom implements INodeType {
    * @param itemIndex - Index of the current item being processed
    * @returns Search results from You.com API
    */
-  static async #executeSearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+  static async #executeSearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
     const query = context.getNodeParameter('query', itemIndex) as string
     const options = context.getNodeParameter('searchOptions', itemIndex) as Record<string, unknown>
 
@@ -485,6 +509,7 @@ export class YouDotCom implements INodeType {
       url: 'https://ydc-index.io/v1/search',
       headers: {
         'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
       },
       qs,
       json: true,
@@ -500,7 +525,11 @@ export class YouDotCom implements INodeType {
    * @param itemIndex - Index of the current item being processed
    * @returns Content extracted from URLs
    */
-  static async #executeContents(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject[]> {
+  static async #executeContents(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject[]> {
     const urlsString = context.getNodeParameter('urls', itemIndex) as string
     const options = context.getNodeParameter('contentsOptions', itemIndex) as Record<string, unknown>
 
@@ -530,6 +559,7 @@ export class YouDotCom implements INodeType {
       url: 'https://ydc-index.io/v1/contents',
       headers: {
         'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
       },
       body,
       json: true,
@@ -545,7 +575,11 @@ export class YouDotCom implements INodeType {
    * @param itemIndex - Index of the current item being processed
    * @returns Research answer with citations and sources from You.com API
    */
-  static async #executeResearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+  static async #executeResearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
     const input = context.getNodeParameter('input', itemIndex) as string
     const researchEffort = context.getNodeParameter('researchEffort', itemIndex) as string
 
@@ -560,6 +594,7 @@ export class YouDotCom implements INodeType {
       url: 'https://api.you.com/v1/research',
       headers: {
         'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
       },
       body,
       json: true,

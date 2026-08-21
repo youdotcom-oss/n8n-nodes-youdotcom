@@ -346,6 +346,18 @@ describe('YouDotComApi Credentials', () => {
       expect(apiKeyProperty?.required).toBe(true)
       expect(apiKeyProperty?.typeOptions?.password).toBe(true)
     })
+
+    test('has optional attribution fields', () => {
+      const names = ['appName', 'appVersion', 'appTitle', 'appUrl']
+      for (const name of names) {
+        const prop = credentials.properties.find((p) => p.name === name)
+        expect(prop, `expected credential field ${name}`).toBeDefined()
+        expect(prop?.type).toBe('string')
+        expect(prop?.required).toBeFalsy()
+        // Attribution fields are not secrets — they travel in X-Client-Info.
+        expect(prop?.typeOptions?.password).toBeFalsy()
+      }
+    })
   })
 
   describe('Authentication', () => {

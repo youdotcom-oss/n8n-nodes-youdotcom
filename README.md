@@ -68,6 +68,12 @@ Perfect for competitive analysis, market research, technical due diligence, or a
 2. In n8n, go to Credentials and create a new "You.com API" credential
 3. Paste your API key and save
 
+### Attribution (optional)
+
+The credential also has four optional fields — **App Name**, **App Version**, **App Title**, and **App URL** — that identify your application in the `X-Client-Info` attribution header sent on every request. When all four are blank, the node sends the channel-only header `sdk; ua=node/unknown`, matching the You.com Python SDK philosophy where `client=` is caller identity and dropped when the caller is undeclared. Set **App Name** (and optionally **App Version**) to emit `client=<name>[/<version>]`; set **App Title** and **App URL** to emit `title=<title>` and `url=<url>` segments. The `ua=` segment reports `node/unknown` because n8n Cloud compatibility rules forbid reading the Node runtime version in shipped source, mirroring the Python SDK's defensive fallback when a version is unavailable.
+
+Values must be printable ASCII. `;` is rejected on all fields, and `/` is rejected on **App Name** and **App Version**. **App Version** requires **App Name**. Invalid values fail the node at run time rather than being silently coerced.
+
 ## Usage
 
 1. Add the "You.com" node to your workflow
