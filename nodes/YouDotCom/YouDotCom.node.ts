@@ -10,7 +10,7 @@ import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workf
 import { buildClientInfoHeader } from './Attribution.ts'
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.5.0'
+const PACKAGE_VERSION = '0.6.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
@@ -51,7 +51,8 @@ export class YouDotCom implements INodeType {
     version: 1,
     usableAsTool: true,
     subtitle: '={{$parameter["operation"]}}',
-    description: 'Search the web, extract content from URLs, and run multi-step research using You.com APIs',
+    description:
+      'Search the web, extract content from URLs, get answers with citations, run multi-step research, and manage background research tasks using You.com APIs',
     defaults: {
       name: 'You.com',
     },
@@ -74,10 +75,28 @@ export class YouDotCom implements INodeType {
         noDataExpression: true,
         options: [
           {
+            name: 'Answer',
+            value: 'answer',
+            description: 'Get a synthesized answer with citations from web search results',
+            action: 'Get an answer with citations',
+          },
+          {
+            name: 'Finance Research',
+            value: 'finance_research',
+            description: 'Get finance-grade research answers with citations from financial data sources',
+            action: 'Research a financial question',
+          },
+          {
             name: 'Get Contents',
             value: 'contents',
             description: 'Extract content from one or more URLs',
             action: 'Extract content from web pages',
+          },
+          {
+            name: 'Get Research Task',
+            value: 'get_research_task',
+            description: 'Poll the status of a background research task',
+            action: 'Get a research task status',
           },
           {
             name: 'Research',
@@ -90,6 +109,12 @@ export class YouDotCom implements INodeType {
             value: 'search',
             description: 'Search the web and news using You.com',
             action: 'Search the web and news',
+          },
+          {
+            name: 'Stream Research Task',
+            value: 'stream_research_task',
+            description: 'Stream real-time updates for a background research task',
+            action: 'Stream a research task',
           },
         ],
         default: 'search',
@@ -507,7 +532,7 @@ export class YouDotCom implements INodeType {
         },
         displayOptions: {
           show: {
-            operation: ['research'],
+            operation: ['research', 'finance_research'],
           },
         },
         default: '',
@@ -527,16 +552,6 @@ export class YouDotCom implements INodeType {
         description: 'Controls the depth and time spent on research',
         options: [
           {
-            name: 'Lite',
-            value: 'lite',
-            description: 'Quick answers for straightforward questions',
-          },
-          {
-            name: 'Standard',
-            value: 'standard',
-            description: 'Balanced speed and depth for most questions',
-          },
-          {
             name: 'Deep',
             value: 'deep',
             description: 'More time researching and cross-referencing sources',
@@ -546,7 +561,277 @@ export class YouDotCom implements INodeType {
             value: 'exhaustive',
             description: 'Most thorough option for complex research tasks',
           },
+          {
+            name: 'Frontier',
+            value: 'frontier',
+            description: 'Highest quality tier, requires background mode',
+          },
+          {
+            name: 'Lite',
+            value: 'lite',
+            description: 'Quick answers for straightforward questions',
+          },
+          {
+            name: 'Standard',
+            value: 'standard',
+            description: 'Balanced speed and depth for most questions',
+          },
         ],
+      },
+      {
+        displayName: 'Background',
+        name: 'background',
+        type: 'boolean',
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: false,
+        description:
+          'Whether to queue a research task and return a task handle immediately instead of waiting for the result inline. Use Get Research Task or Stream Research Task to retrieve the result.',
+      },
+      {
+        displayName: 'Source Control',
+        name: 'sourceControl',
+        type: 'collection',
+        placeholder: 'Add source control',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        description: 'Beta. Controls which web sources the research agent searches and visits.',
+        options: [
+          {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Country',
+            name: 'country',
+            type: 'string',
+            default: '',
+            placeholder: 'e.g., US',
+            description: 'ISO 3166-1 alpha-2 country code to geographically focus web results',
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Never return results from these domains (max 500). Also blocks browsing. Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Freshness',
+            name: 'freshness',
+            type: 'options',
+            default: '',
+            description: 'Filter results by recency',
+            options: [
+              { name: 'Any Time', value: '' },
+              { name: 'Past Day', value: 'day' },
+              { name: 'Past Month', value: 'month' },
+              { name: 'Past Week', value: 'week' },
+              { name: 'Past Year', value: 'year' },
+            ],
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
+          },
+        ],
+      },
+      {
+        displayName: 'Output Schema',
+        name: 'outputSchema',
+        type: 'string',
+        typeOptions: {
+          rows: 10,
+        },
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: '',
+        placeholder: '{"type":"object","properties":{...},"required":[...]}',
+        description:
+          'Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, and exhaustive effort. Not supported with lite.',
+      },
+      {
+        displayName: 'Finance Research Effort',
+        name: 'financeResearchEffort',
+        type: 'options',
+        displayOptions: {
+          show: {
+            operation: ['finance_research'],
+          },
+        },
+        default: 'deep',
+        description: 'Controls the depth and time spent on financial research',
+        options: [
+          {
+            name: 'Deep',
+            value: 'deep',
+            description: 'More time researching and cross-referencing sources (default)',
+          },
+          {
+            name: 'Exhaustive',
+            value: 'exhaustive',
+            description: 'Most thorough option for complex financial research tasks',
+          },
+        ],
+      },
+      {
+        displayName: 'Query',
+        name: 'query',
+        type: 'string',
+        required: true,
+        displayOptions: {
+          show: {
+            operation: ['answer'],
+          },
+        },
+        default: '',
+        placeholder: 'e.g., What is the capital of France?',
+        description:
+          'The search query used to retrieve relevant web results (max 400 characters). Search operators are not supported.',
+      },
+      {
+        displayName: 'Answer Options',
+        name: 'answerOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: ['answer'],
+          },
+        },
+        description: 'Optional filters for the answer operation',
+        options: [
+          {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Country',
+            name: 'country',
+            type: 'string',
+            default: '',
+            placeholder: 'e.g., US',
+            description: 'Country code that determines the geographical focus of results',
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description: 'Never return results from these domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Freshness',
+            name: 'freshness',
+            type: 'options',
+            default: '',
+            description: 'Filter results by recency',
+            options: [
+              { name: 'Any Time', value: '' },
+              { name: 'Past Day', value: 'day' },
+              { name: 'Past Month', value: 'month' },
+              { name: 'Past Week', value: 'week' },
+              { name: 'Past Year', value: 'year' },
+            ],
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: '',
+            description:
+              'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
+          },
+          {
+            displayName: 'Language',
+            name: 'language',
+            type: 'string',
+            default: '',
+            placeholder: 'e.g., EN',
+            description: 'BCP 47 language tag for the web results',
+          },
+          {
+            displayName: 'Safe Search',
+            name: 'safesearch',
+            type: 'options',
+            default: '',
+            description: 'Content moderation filter level',
+            options: [
+              { name: 'Default', value: '' },
+              { name: 'Off', value: 'off' },
+              { name: 'Moderate', value: 'moderate' },
+              { name: 'Strict', value: 'strict' },
+            ],
+          },
+        ],
+      },
+      {
+        displayName: 'Task ID',
+        name: 'taskId',
+        type: 'string',
+        required: true,
+        displayOptions: {
+          show: {
+            operation: ['get_research_task', 'stream_research_task'],
+          },
+        },
+        default: '',
+        placeholder: 'e.g., abc12345-...',
+        description: 'The UUID of the background research task to poll or stream',
+      },
+      {
+        displayName: 'From ID',
+        name: 'fromId',
+        type: 'number',
+        displayOptions: {
+          show: {
+            operation: ['stream_research_task'],
+          },
+        },
+        default: 0,
+        description: 'Resume from a sequence number for reconnection (default 0)',
       },
     ],
   }
@@ -592,6 +877,30 @@ export class YouDotCom implements INodeType {
           returnData.push(...executionData)
         } else if (operation === 'research') {
           const response = await YouDotCom.#executeResearch(this, i, clientInfoHeader)
+          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+            itemData: { item: i },
+          })
+          returnData.push(...executionData)
+        } else if (operation === 'answer') {
+          const response = await YouDotCom.#executeAnswer(this, i, clientInfoHeader)
+          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+            itemData: { item: i },
+          })
+          returnData.push(...executionData)
+        } else if (operation === 'finance_research') {
+          const response = await YouDotCom.#executeFinanceResearch(this, i, clientInfoHeader)
+          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+            itemData: { item: i },
+          })
+          returnData.push(...executionData)
+        } else if (operation === 'get_research_task') {
+          const response = await YouDotCom.#executeGetResearchTask(this, i, clientInfoHeader)
+          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+            itemData: { item: i },
+          })
+          returnData.push(...executionData)
+        } else if (operation === 'stream_research_task') {
+          const response = await YouDotCom.#executeStreamResearchTask(this, i, clientInfoHeader)
           const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
             itemData: { item: i },
           })
@@ -762,11 +1071,47 @@ export class YouDotCom implements INodeType {
   ): Promise<IDataObject> {
     const input = context.getNodeParameter('input', itemIndex) as string
     const researchEffort = context.getNodeParameter('researchEffort', itemIndex) as string
+    const background = context.getNodeParameter('background', itemIndex, false) as boolean
 
-    const body: Record<string, string> = { input }
+    // frontier effort requires background mode (server returns 422 otherwise)
+    if (researchEffort === 'frontier' && !background) {
+      throw new NodeOperationError(
+        context.getNode(),
+        'Frontier research effort requires Background mode. Enable Background or choose a different effort level.',
+        { itemIndex },
+      )
+    }
 
-    if (researchEffort) {
-      body.research_effort = researchEffort
+    const body: Record<string, unknown> = { input, research_effort: researchEffort, background }
+
+    // source_control collection
+    const sourceControl = context.getNodeParameter('sourceControl', itemIndex, {}) as Record<string, unknown>
+    const scBody: Record<string, unknown> = {}
+    const includeDomains = toStringArray(sourceControl.include_domains)
+    const excludeDomains = toStringArray(sourceControl.exclude_domains)
+    const boostDomains = toStringArray(sourceControl.boost_domains)
+    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
+      throw new NodeOperationError(
+        context.getNode(),
+        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
+        { itemIndex },
+      )
+    }
+    if (includeDomains.length > 0) scBody.include_domains = includeDomains
+    if (excludeDomains.length > 0) scBody.exclude_domains = excludeDomains
+    if (boostDomains.length > 0) scBody.boost_domains = boostDomains
+    if (sourceControl.freshness) scBody.freshness = sourceControl.freshness
+    if (sourceControl.country) scBody.country = sourceControl.country
+    if (Object.keys(scBody).length > 0) body.source_control = scBody
+
+    // output_schema (JSON string → object)
+    const outputSchema = context.getNodeParameter('outputSchema', itemIndex, '') as string
+    if (outputSchema.trim()) {
+      try {
+        body.output_schema = JSON.parse(outputSchema)
+      } catch {
+        throw new NodeOperationError(context.getNode(), 'Output Schema must be valid JSON.', { itemIndex })
+      }
     }
 
     const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
@@ -781,5 +1126,126 @@ export class YouDotCom implements INodeType {
     })
 
     return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Answer operation
+   */
+  static async #executeAnswer(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const query = context.getNodeParameter('query', itemIndex) as string
+    const options = context.getNodeParameter('answerOptions', itemIndex) as Record<string, unknown>
+
+    const body: Record<string, unknown> = { query }
+
+    const includeDomains = toStringArray(options.include_domains)
+    const excludeDomains = toStringArray(options.exclude_domains)
+    const boostDomains = toStringArray(options.boost_domains)
+    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
+      throw new NodeOperationError(
+        context.getNode(),
+        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
+        { itemIndex },
+      )
+    }
+    if (includeDomains.length > 0) body.include_domains = includeDomains
+    if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
+    if (boostDomains.length > 0) body.boost_domains = boostDomains
+    if (options.freshness) body.freshness = options.freshness
+    if (options.country) body.country = options.country
+    if (options.language) body.language = options.language
+    if (options.safesearch) body.safesearch = options.safesearch
+
+    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+      method: 'POST',
+      url: 'https://api.you.com/v1/answer',
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
+      },
+      body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Finance Research operation
+   */
+  static async #executeFinanceResearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const input = context.getNodeParameter('input', itemIndex) as string
+    const researchEffort = context.getNodeParameter('financeResearchEffort', itemIndex) as string
+
+    const body: Record<string, unknown> = { input, research_effort: researchEffort }
+
+    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+      method: 'POST',
+      url: 'https://api.you.com/v1/finance_research',
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
+      },
+      body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Get Research Task operation
+   */
+  static async #executeGetResearchTask(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const taskId = context.getNodeParameter('taskId', itemIndex) as string
+
+    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+      method: 'GET',
+      url: `https://api.you.com/v1/research/${encodeURIComponent(taskId)}`,
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
+      },
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Stream Research Task operation
+   */
+  static async #executeStreamResearchTask(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const taskId = context.getNodeParameter('taskId', itemIndex) as string
+    const fromId = context.getNodeParameter('fromId', itemIndex, 0) as number
+
+    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+      method: 'GET',
+      url: `https://api.you.com/v1/research/${encodeURIComponent(taskId)}/stream`,
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Client-Info': clientInfoHeader,
+      },
+      qs: { from_id: fromId },
+      json: false,
+      encoding: 'text',
+    })
+
+    return { stream: String(rawResponse) } as IDataObject
   }
 }

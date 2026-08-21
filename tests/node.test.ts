@@ -110,7 +110,35 @@ describe('YouDotCom Node', () => {
 
     test('has exactly three operations', () => {
       const operationProperty = getOperationProperty()
-      expect(operationProperty?.options?.length).toBe(3)
+      expect(operationProperty?.options?.length).toBe(7)
+    })
+
+    test('has answer operation', () => {
+      const operationProperty = getOperationProperty()
+      const answerOption = operationProperty?.options?.find((o) => o.value === 'answer')
+      expect(answerOption).toBeDefined()
+      expect(answerOption?.name).toBe('Answer')
+    })
+
+    test('has finance research operation', () => {
+      const operationProperty = getOperationProperty()
+      const financeOption = operationProperty?.options?.find((o) => o.value === 'finance_research')
+      expect(financeOption).toBeDefined()
+      expect(financeOption?.name).toBe('Finance Research')
+    })
+
+    test('has get research task operation', () => {
+      const operationProperty = getOperationProperty()
+      const getTaskOption = operationProperty?.options?.find((o) => o.value === 'get_research_task')
+      expect(getTaskOption).toBeDefined()
+      expect(getTaskOption?.name).toBe('Get Research Task')
+    })
+
+    test('has stream research task operation', () => {
+      const operationProperty = getOperationProperty()
+      const streamTaskOption = operationProperty?.options?.find((o) => o.value === 'stream_research_task')
+      expect(streamTaskOption).toBeDefined()
+      expect(streamTaskOption?.name).toBe('Stream Research Task')
     })
   })
 
@@ -126,7 +154,9 @@ describe('YouDotCom Node', () => {
     }
 
     test('has query parameter as required', () => {
-      const queryProperty = node.description.properties.find((p) => p.name === 'query')
+      const queryProperty = node.description.properties.find(
+        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('answer'),
+      )
       expect(queryProperty).toBeDefined()
       expect(queryProperty?.required).toBe(true)
       expect(queryProperty?.type).toBe('string')
@@ -360,7 +390,7 @@ describe('YouDotCom Node', () => {
 
     test('input parameter is only shown for research operation', () => {
       const inputProperty = node.description.properties.find((p) => p.name === 'input')
-      expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research'])
+      expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research', 'finance_research'])
     })
 
     test('has research effort option with all levels', () => {
@@ -385,6 +415,66 @@ describe('YouDotCom Node', () => {
     test('research effort is only shown for research operation', () => {
       const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort')
       expect(effortProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('research effort includes frontier option', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort') as
+        | PropertyWithOptions
+        | undefined
+      const effortValues = effortProperty?.options?.map((o) => o.value)
+      expect(effortValues).toContain('frontier')
+    })
+
+    test('has background parameter with default false', () => {
+      const bgProperty = node.description.properties.find((p) => p.name === 'background')
+      expect(bgProperty).toBeDefined()
+      expect(bgProperty?.type).toBe('boolean')
+      expect(bgProperty?.default).toBe(false)
+    })
+
+    test('has source control collection', () => {
+      const scProperty = node.description.properties.find((p) => p.name === 'sourceControl')
+      expect(scProperty).toBeDefined()
+      expect(scProperty?.type).toBe('collection')
+    })
+
+    test('has output schema parameter', () => {
+      const osProperty = node.description.properties.find((p) => p.name === 'outputSchema')
+      expect(osProperty).toBeDefined()
+      expect(osProperty?.type).toBe('string')
+    })
+
+    test('has finance research effort with deep and exhaustive', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'financeResearchEffort') as
+        | PropertyWithOptions
+        | undefined
+      expect(effortProperty).toBeDefined()
+      expect(effortProperty?.default).toBe('deep')
+      const effortValues = effortProperty?.options?.map((o) => o.value)
+      expect(effortValues).toContain('deep')
+      expect(effortValues).toContain('exhaustive')
+    })
+
+    test('has answer query parameter as required', () => {
+      const queryProperty = node.description.properties.find(
+        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('answer'),
+      )
+      expect(queryProperty).toBeDefined()
+      expect(queryProperty?.required).toBe(true)
+      expect(queryProperty?.displayOptions?.show?.operation).toEqual(['answer'])
+    })
+
+    test('has task ID parameter shown for get and stream operations', () => {
+      const taskIdProperty = node.description.properties.find((p) => p.name === 'taskId')
+      expect(taskIdProperty).toBeDefined()
+      expect(taskIdProperty?.required).toBe(true)
+      expect(taskIdProperty?.displayOptions?.show?.operation).toEqual(['get_research_task', 'stream_research_task'])
+    })
+
+    test('has from ID parameter shown for stream operation', () => {
+      const fromIdProperty = node.description.properties.find((p) => p.name === 'fromId')
+      expect(fromIdProperty).toBeDefined()
+      expect(fromIdProperty?.displayOptions?.show?.operation).toEqual(['stream_research_task'])
     })
   })
 
