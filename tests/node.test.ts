@@ -502,7 +502,7 @@ describe('YouDotComApi Credentials', () => {
     })
 
     test('has documentation URL', () => {
-      expect(credentials.documentationUrl).toBe('https://docs.you.com/get-started/quickstart')
+      expect(credentials.documentationUrl).toBe('https://docs.you.com/docs/integrations/n8n')
     })
   })
 

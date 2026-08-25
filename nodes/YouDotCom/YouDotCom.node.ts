@@ -49,6 +49,7 @@ export class YouDotCom implements INodeType {
     icon: 'file:youdotcom.svg',
     group: ['transform'],
     version: 1,
+    documentationUrl: 'https://docs.you.com/docs/integrations/n8n',
     usableAsTool: true,
     subtitle: '={{$parameter["operation"]}}',
     description:

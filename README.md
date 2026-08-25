@@ -146,9 +146,12 @@ This node also works as a tool for [AI agents in n8n](https://docs.n8n.io/integr
 ## Resources
 
 - [You.com API docs](https://docs.you.com/)
-- [Search API reference](https://docs.you.com/api-reference/search)
-- [Contents API reference](https://docs.you.com/api-reference/contents)
-- [Research API reference](https://docs.you.com/api-reference/research)
+- [n8n integration guide](https://docs.you.com/docs/integrations/n8n)
+- [Web Search API reference](https://docs.you.com/docs/api-reference/search/v1-search)
+- [Contents API reference](https://docs.you.com/docs/api-reference/contents)
+- [Answer API reference](https://docs.you.com/docs/api-reference/answer/v1-answer)
+- [Research API reference](https://docs.you.com/docs/api-reference/research/v1-research)
+- [Finance Research API reference](https://docs.you.com/docs/api-reference/finance-research/v1-finance_research)
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
 
 ## License
