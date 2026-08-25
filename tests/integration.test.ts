@@ -83,6 +83,39 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     expect(res.status).toBe(200)
   })
 
+  test('search with exclude_domains filter', async () => {
+    const res = await postJson(SEARCH_URL, {
+      query: 'Paris',
+      exclude_domains: ['pinterest.com'],
+    })
+    expect(res.status).toBe(200)
+  })
+
+  test('search with boost_domains filter', async () => {
+    const res = await postJson(SEARCH_URL, {
+      query: 'AI news',
+      boost_domains: ['arxiv.org'],
+    })
+    expect(res.status).toBe(200)
+  })
+
+  test('search with crawl_timeout parameter', async () => {
+    const res = await postJson(SEARCH_URL, {
+      query: 'test',
+      crawl_timeout: 10,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  test('search with country and language filters', async () => {
+    const res = await postJson(SEARCH_URL, {
+      query: 'test',
+      country: 'US',
+      language: 'EN',
+    })
+    expect(res.status).toBe(200)
+  })
+
   // ── Contents ─────────────────────────────────────────────────────────
 
   test('contents returns page content as markdown', async () => {
@@ -104,6 +137,26 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     expect(res.status).toBe(200)
   })
 
+  test('contents with multiple URLs', async () => {
+    const res = await postJson(CONTENTS_URL, {
+      urls: ['https://example.com', 'https://www.iana.org/'],
+      formats: ['markdown'],
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(Array.isArray(data)).toBe(true)
+    expect(data.length).toBe(2)
+  })
+
+  test('contents with crawl_timeout parameter', async () => {
+    const res = await postJson(CONTENTS_URL, {
+      urls: ['https://example.com'],
+      formats: ['markdown'],
+      crawl_timeout: 10,
+    })
+    expect(res.status).toBe(200)
+  })
+
   // ── Answer ───────────────────────────────────────────────────────────
 
   test('answer returns a synthesized answer', async () => {
@@ -119,6 +172,15 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     const res = await postJson(`${API_BASE}/answer`, {
       query: 'Eiffel Tower height',
       include_domains: ['wikipedia.org'],
+    })
+    expect(res.status).toBe(200)
+  })
+
+  test('answer with freshness and safesearch filters', async () => {
+    const res = await postJson(`${API_BASE}/answer`, {
+      query: 'latest AI news',
+      freshness: 'week',
+      safesearch: 'moderate',
     })
     expect(res.status).toBe(200)
   })
@@ -145,6 +207,31 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     expect(res.status).toBe(200)
     const data = (await res.json()) as Record<string, unknown>
     expect(data.task_id).toBeDefined()
+  })
+
+  test('research with source_control filter', async () => {
+    const res = await postJson(`${API_BASE}/research`, {
+      input: 'What is the capital of France?',
+      research_effort: 'lite',
+      background: false,
+      source_control: {
+        include_domains: ['wikipedia.org'],
+        freshness: 'year',
+      },
+    })
+    expect(res.status).toBe(200)
+  })
+
+  // ── Finance Research ─────────────────────────────────────────────────
+
+  test('finance research with deep effort returns an answer', async () => {
+    const res = await postJson(`${API_BASE}/finance_research`, {
+      input: 'What is the current state of the US economy?',
+      research_effort: 'deep',
+    })
+    expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    expect(data).toBeDefined()
   })
 
   // ── Get Research Task ────────────────────────────────────────────────
