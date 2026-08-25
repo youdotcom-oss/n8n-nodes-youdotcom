@@ -53,7 +53,7 @@ Useful for scraping product pages, pulling article text, or extracting structure
 | URLs | One or more URLs to extract (required). Use the + button to add multiple URLs, or enter a comma-separated list |
 | Crawl Timeout | Max seconds to wait for page content, 1-60 (default: 10) |
 | Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards) |
-| Max Age | Maximum allowed age of cached content in seconds (0 or greater). 0 means always re-fetch. Leave unset for no age limit |
+| Max Age | Maximum allowed age of cached content in seconds. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit |
 
 ### Research
 
@@ -128,11 +128,15 @@ Stream real-time updates for a background research task via Server-Sent Events. 
 2. In n8n, go to Credentials and create a new "You.com API" credential
 3. Paste your API key and save
 
-### Attribution (optional)
+### Attribution
 
-The credential also has four optional fields — **App Name**, **App Version**, **App Title**, and **App URL** — that identify your application in the `X-Client-Info` attribution header sent on every request. When all four are blank, the node sends the channel-only header `sdk; ua=node/unknown`, matching the You.com Python SDK philosophy where `client=` is caller identity and dropped when the caller is undeclared. Set **App Name** (and optionally **App Version**) to emit `client=<name>[/<version>]`; set **App Title** and **App URL** to emit `title=<title>` and `url=<url>` segments. The `ua=` segment reports `node/unknown` because n8n Cloud compatibility rules forbid reading the Node runtime version in shipped source, mirroring the Python SDK's defensive fallback when a version is unavailable.
+Every API request includes an `X-Client-Info` attribution header that identifies this plugin automatically. No configuration is needed. The header looks like:
 
-Values must be printable ASCII. `;` is rejected on all fields, and `/` is rejected on **App Name** and **App Version**. **App Version** requires **App Name**. Invalid values fail the node at run time rather than being silently coerced.
+```
+X-Client-Info: sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown
+```
+
+The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-youdotcom/<version>` segment identifies the plugin and its version, the same convention LangChain uses (`client=langchain-youdotcom/<version>`). The `ua=node/unknown` segment reports the Node.js runtime; the version degrades to `unknown` because n8n Cloud compatibility rules forbid reading `process` in shipped source.
 
 ## Usage
 

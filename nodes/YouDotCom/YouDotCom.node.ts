@@ -16,25 +16,52 @@ const PACKAGE_VERSION = '0.6.0'
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
 
 /** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
-function toStringArray(value: unknown): string[] {
+export function toStringArray(value: unknown): string[] {
   if (value == null) return []
   const arr = Array.isArray(value) ? value : [value]
   return arr.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
 }
 
-/** Normalize URLs from a multi-string or CSV string n8n value to a trimmed string[]. */
-function toUrlList(value: unknown): string[] {
+/** Normalize URLs from a multi-string or CSV string n8n value to a trimmed string[].
+ *
+ * When the input is already an array (the n8n multi-string "+ button" UI), each
+ * element is treated as a complete URL and trimmed. When the input is a single
+ * string, it is split on commas as a CSV fallback for users who paste a list.
+ * This avoids corrupting URLs that legitimately contain commas in their path or
+ * query string (e.g. `https://example.com/path?a=1,2`) when the user used the
+ * multi-string UI.
+ */
+export function toUrlList(value: unknown): string[] {
   if (value == null) return []
-  const items = Array.isArray(value) ? value : [value]
-  const urls: string[] = []
-  for (const item of items) {
-    if (typeof item !== 'string') continue
-    for (const part of item.split(',')) {
-      const trimmed = part.trim()
-      if (trimmed) urls.push(trimmed)
-    }
+  // Multi-string UI produces an array — each element is a whole URL, do not split.
+  if (Array.isArray(value)) return toStringArray(value)
+  // Single string — split on commas as a CSV convenience.
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '')
   }
-  return urls
+  return []
+}
+
+/** Validate domain filter mutual exclusion and return the three normalized arrays. */
+function resolveDomainFilters(
+  context: IExecuteFunctions,
+  raw: Record<string, unknown>,
+  itemIndex: number,
+): { include: string[]; exclude: string[]; boost: string[] } {
+  const include = toStringArray(raw.include_domains)
+  const exclude = toStringArray(raw.exclude_domains)
+  const boost = toStringArray(raw.boost_domains)
+  if (include.length > 0 && (exclude.length > 0 || boost.length > 0)) {
+    throw new NodeOperationError(
+      context.getNode(),
+      'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
+      { itemIndex },
+    )
+  }
+  return { include, exclude, boost }
 }
 
 /**
@@ -515,7 +542,7 @@ export class YouDotCom implements INodeType {
             },
             default: 0,
             description:
-              'Maximum allowed age of cached content in seconds (0 or greater). 0 means always re-fetch. Leave unset for no age limit (use cache regardless of age).',
+              'Maximum allowed age of cached content in seconds. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).',
           },
         ],
       },
@@ -841,24 +868,10 @@ export class YouDotCom implements INodeType {
     const items = this.getInputData()
     const returnData: INodeExecutionData[] = []
 
-    // Build the X-Client-Info attribution header once from the credential.
-    // The builder is permissive on the version-without-name pairing (it drops
-    // client=), so enforce that guard here, mirroring the Python SDK's You.__init__.
-    const credentials = await this.getCredentials('youDotComApi')
-    const appName = (credentials.appName as string | undefined) ?? ''
-    const appVersion = (credentials.appVersion as string | undefined) ?? ''
-    if (appVersion && !appName) {
-      throw new NodeOperationError(
-        this.getNode(),
-        'App Version requires App Name. The X-Client-Info header emits them together as client=<name>/<version>, so a version with no name has nowhere to go.',
-      )
-    }
-    const clientInfoHeader = buildClientInfoHeader({
-      appName,
-      appVersion,
-      appTitle: (credentials.appTitle as string | undefined) ?? '',
-      appUrl: (credentials.appUrl as string | undefined) ?? '',
-    })
+    // Build the X-Client-Info attribution header once. The header is fully
+    // automatic — the plugin name and version are compile-time constants, so
+    // there is no user-supplied input to validate or fail on.
+    const clientInfoHeader = buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION })
 
     for (let i = 0; i < items.length; i++) {
       try {
@@ -939,21 +952,9 @@ export class YouDotCom implements INodeType {
     clientInfoHeader: string,
   ): Promise<IDataObject> {
     const query = context.getNodeParameter('query', itemIndex) as string
-    const options = context.getNodeParameter('searchOptions', itemIndex) as Record<string, unknown>
+    const options = context.getNodeParameter('searchOptions', itemIndex, {}) as Record<string, unknown>
 
-    // Domain filters (multi-string). include_domains cannot combine with
-    // exclude_domains or boost_domains (the API returns 422); exclude can
-    // combine with boost. Block at execution rather than round-tripping a 422.
-    const includeDomains = toStringArray(options.include_domains)
-    const excludeDomains = toStringArray(options.exclude_domains)
-    const boostDomains = toStringArray(options.boost_domains)
-    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
-      throw new NodeOperationError(
-        context.getNode(),
-        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
-        { itemIndex },
-      )
-    }
+    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, options, itemIndex)
 
     // extraction takes precedence over the deprecated livecrawl/livecrawl_formats.
     const extraction = options.extraction as
@@ -968,7 +969,7 @@ export class YouDotCom implements INodeType {
     if (options.country) body.country = options.country as string
     if (options.freshness) body.freshness = options.freshness as string
     if (options.language) body.language = options.language as string
-    if (options.offset !== undefined) body.offset = options.offset as number
+    if (options.offset) body.offset = options.offset as number
     if (options.safesearch) body.safesearch = options.safesearch as string
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
@@ -1021,7 +1022,7 @@ export class YouDotCom implements INodeType {
     clientInfoHeader: string,
   ): Promise<IDataObject[]> {
     const urlsRaw = context.getNodeParameter('urls', itemIndex)
-    const options = context.getNodeParameter('contentsOptions', itemIndex) as Record<string, unknown>
+    const options = context.getNodeParameter('contentsOptions', itemIndex, {}) as Record<string, unknown>
 
     // Normalize URLs from multi-string or CSV string input
     const urls = toUrlList(urlsRaw)
@@ -1040,7 +1041,7 @@ export class YouDotCom implements INodeType {
     if (options.crawl_timeout) {
       body.crawl_timeout = options.crawl_timeout
     }
-    if (options.max_age != null) {
+    if (options.max_age != null && (options.max_age as number) > 0) {
       body.max_age = options.max_age
     }
 
@@ -1088,16 +1089,7 @@ export class YouDotCom implements INodeType {
     // source_control collection
     const sourceControl = context.getNodeParameter('sourceControl', itemIndex, {}) as Record<string, unknown>
     const scBody: Record<string, unknown> = {}
-    const includeDomains = toStringArray(sourceControl.include_domains)
-    const excludeDomains = toStringArray(sourceControl.exclude_domains)
-    const boostDomains = toStringArray(sourceControl.boost_domains)
-    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
-      throw new NodeOperationError(
-        context.getNode(),
-        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
-        { itemIndex },
-      )
-    }
+    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, sourceControl, itemIndex)
     if (includeDomains.length > 0) scBody.include_domains = includeDomains
     if (excludeDomains.length > 0) scBody.exclude_domains = excludeDomains
     if (boostDomains.length > 0) scBody.boost_domains = boostDomains
@@ -1138,20 +1130,11 @@ export class YouDotCom implements INodeType {
     clientInfoHeader: string,
   ): Promise<IDataObject> {
     const query = context.getNodeParameter('query', itemIndex) as string
-    const options = context.getNodeParameter('answerOptions', itemIndex) as Record<string, unknown>
+    const options = context.getNodeParameter('answerOptions', itemIndex, {}) as Record<string, unknown>
 
     const body: Record<string, unknown> = { query }
 
-    const includeDomains = toStringArray(options.include_domains)
-    const excludeDomains = toStringArray(options.exclude_domains)
-    const boostDomains = toStringArray(options.boost_domains)
-    if (includeDomains.length > 0 && (excludeDomains.length > 0 || boostDomains.length > 0)) {
-      throw new NodeOperationError(
-        context.getNode(),
-        'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
-        { itemIndex },
-      )
-    }
+    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, options, itemIndex)
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
     if (boostDomains.length > 0) body.boost_domains = boostDomains

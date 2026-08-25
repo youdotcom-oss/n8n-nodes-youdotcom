@@ -23,7 +23,7 @@ const HEADERS: Record<string, string> = {
   'X-API-Key': API_KEY,
   'Content-Type': 'application/json',
   'User-Agent': 'n8n-nodes-youdotcom/0.6.0 (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)',
-  'X-Client-Info': 'sdk; ua=node/unknown',
+  'X-Client-Info': 'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
 }
 
 async function postJson(url: string, body: Record<string, unknown>): Promise<Response> {
@@ -51,7 +51,7 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
   test('search returns results for a basic query', async () => {
     const res = await postJson(SEARCH_URL, { query: 'capital of France' })
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = (await res.json()) as Record<string, unknown>
     expect(data).toBeDefined()
   })
 
@@ -61,6 +61,8 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       include_domains: ['wikipedia.org'],
     })
     expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    expect(data).toBeDefined()
   })
 
   test('search with extraction highlights mode', async () => {
@@ -69,6 +71,8 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       extraction: { extraction_mode: 'highlights' },
     })
     expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    expect(data).toBeDefined()
   })
 
   test('search with extraction full_page mode returns page content', async () => {
@@ -81,6 +85,8 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       crawl_timeout: 15,
     })
     expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    expect(data).toBeDefined()
   })
 
   test('search with exclude_domains filter', async () => {
@@ -124,15 +130,17 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       formats: ['markdown'],
     })
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = (await res.json()) as Array<Record<string, unknown>>
     expect(Array.isArray(data)).toBe(true)
+    expect(data.length).toBeGreaterThan(0)
+    expect(data[0]?.markdown).toBeDefined()
   })
 
-  test('contents with max_age=0 forces re-fetch', async () => {
+  test('contents with max_age forces re-fetch', async () => {
     const res = await postJson(CONTENTS_URL, {
       urls: ['https://example.com'],
       formats: ['markdown'],
-      max_age: 0,
+      max_age: 1,
     })
     expect(res.status).toBe(200)
   })
@@ -164,8 +172,8 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       query: 'What is the capital of France?',
     })
     expect(res.status).toBe(200)
-    const data = await res.json()
-    expect(data).toBeDefined()
+    const data = (await res.json()) as Record<string, unknown>
+    expect(data.answer).toBeDefined()
   })
 
   test('answer with include_domains filter', async () => {
@@ -194,8 +202,10 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       background: false,
     })
     expect(res.status).toBe(200)
-    const data = await res.json()
-    expect(data).toBeDefined()
+    const data = (await res.json()) as Record<string, unknown>
+    // Synchronous research returns output directly; do not assert on the
+    // absence of task_id since the API may include it for tracing.
+    expect(data.output).toBeDefined()
   })
 
   test('research with background=true returns a task_id', async () => {
@@ -231,16 +241,21 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     })
     expect(res.status).toBe(200)
     const data = (await res.json()) as Record<string, unknown>
-    expect(data).toBeDefined()
+    expect(data.output).toBeDefined()
   })
 
   // ── Get Research Task ────────────────────────────────────────────────
 
-  test('get research task returns task status', async () => {
-    const res = await fetch(`${API_BASE}/research/${backgroundTaskId}`, { headers: HEADERS })
+  test('get research task returns task data', async () => {
+    const res = await fetch(`${API_BASE}/research/${backgroundTaskId}`, {
+      headers: HEADERS,
+      signal: AbortSignal.timeout(30_000),
+    })
     expect(res.status).toBe(200)
-    const data = await res.json()
-    expect(data).toBeDefined()
+    const data = (await res.json()) as Record<string, unknown>
+    // The response shape varies by task state (pending vs completed).
+    // A completed task has output; a pending task has status.
+    expect(data.status ?? data.output).toBeDefined()
   })
 
   // ── Stream Research Task ──────────────────────────────────────────────
@@ -251,15 +266,16 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       signal: AbortSignal.timeout(60_000),
     })
     expect(res.status).toBe(200)
-    // SSE streams stay open until the task reaches a terminal state.
-    // Read just the first chunk to verify we get data, then cancel.
     expect(res.body).toBeDefined()
     if (res.body) {
       const reader = res.body.getReader()
-      const { value } = await reader.read()
-      if (value) {
-        expect(value.length).toBeGreaterThan(0)
+      const { value, done } = await reader.read()
+      if (!done) {
+        expect(value).toBeDefined()
+        expect(value!.length).toBeGreaterThan(0)
       }
+      // If done is true, the task already completed and the stream has no
+      // remaining chunks — that is a valid state, not a failure.
       await reader.cancel()
     }
   })

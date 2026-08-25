@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { toStringArray, toUrlList } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
  * Unit tests for the helper functions used by the You.com n8n node.
@@ -6,34 +7,6 @@ import { describe, expect, test } from 'bun:test'
  * These functions normalize n8n's flexible input types (string, string[],
  * undefined, CSV strings) into clean arrays for the API request body.
  */
-
-// Import the node module to access the exported class, then extract the
-// internal helpers via the module's compiled output. Since the helpers are
-// not exported, we test them indirectly through the public surface by
-// re-implementing the same logic and verifying parity. However, a better
-// approach: we can import the node file and check the helpers are used
-// correctly by inspecting the source. For direct testing, we replicate the
-// exact logic here and test edge cases.
-
-function toStringArray(value: unknown): string[] {
-  if (value == null) return []
-  const arr = Array.isArray(value) ? value : [value]
-  return arr.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
-}
-
-function toUrlList(value: unknown): string[] {
-  if (value == null) return []
-  const items = Array.isArray(value) ? value : [value]
-  const urls: string[] = []
-  for (const item of items) {
-    if (typeof item !== 'string') continue
-    for (const part of item.split(',')) {
-      const trimmed = part.trim()
-      if (trimmed) urls.push(trimmed)
-    }
-  }
-  return urls
-}
 
 describe('toStringArray', () => {
   test('returns empty array for null/undefined', () => {
@@ -90,10 +63,9 @@ describe('toUrlList', () => {
     ])
   })
 
-  test('splits each element in a mixed array (multi-string + CSV)', () => {
+  test('treats each element in an array as a complete URL (no splitting)', () => {
     expect(toUrlList(['https://a.com, https://b.com', 'https://c.com'])).toEqual([
-      'https://a.com',
-      'https://b.com',
+      'https://a.com, https://b.com',
       'https://c.com',
     ])
   })
@@ -111,10 +83,14 @@ describe('toUrlList', () => {
   })
 
   test('returns empty array for all-empty input', () => {
-    expect(toUrlList(['', '  ', ','])).toEqual([])
+    expect(toUrlList(['', '  '])).toEqual([])
   })
 
   test('handles a single URL with no commas', () => {
     expect(toUrlList('https://en.wikipedia.org/wiki/Paris')).toEqual(['https://en.wikipedia.org/wiki/Paris'])
+  })
+
+  test('preserves URLs with commas in query string when passed as array', () => {
+    expect(toUrlList(['https://example.com/path?a=1,2,3'])).toEqual(['https://example.com/path?a=1,2,3'])
   })
 })

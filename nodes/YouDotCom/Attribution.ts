@@ -1,26 +1,26 @@
 /**
  * Build the `X-Client-Info` attribution header value for outbound API requests.
  *
- * Ports the wire-format contract from the You.com Python SDK 3.1.2
- * `youdotcom.utils.attribution` module. Emits a caller-identity header so the
- * analytics layer can distinguish SDK/plugin traffic from other sources. SDK
- * traffic is uniquely identified by the leading literal `sdk`.
+ * Emits a caller-identity header so the analytics layer can distinguish traffic
+ * sources. The n8n plugin is identified by:
+ *
+ * - The leading literal `sdk` (shared channel token for all You.com SDK/plugin
+ *   traffic, matching the Python SDK).
+ * - The `client=n8n-nodes-youdotcom/<version>` segment, which names this plugin
+ *   and its version — the same convention LangChain uses
+ *   (`client=langchain-youdotcom/<version>`).
+ * - The `ua=node/unknown` segment, reporting the Node.js runtime. The n8n Cloud
+ *   compatibility rules forbid reading `process`/`globalThis`/`node:process` in
+ *   shipped source, so the runtime version degrades to `unknown`, mirroring the
+ *   Python SDK's defensive `httpx/unknown` fallback.
  *
  * Grammar (segments joined by `"; "`):
  *
- *     sdk[; client=<name>[/<version>]][; title=<title>][; url=<url>]; ua=node/unknown
+ *     sdk; client=n8n-nodes-youdotcom/<version>; ua=node/unknown
  *
- * Optional segments are dropped entirely (no leading/trailing `"; "`, no empty
- * `=`) when their value is falsy. Values must be printable ASCII (`\x20`–`\x7e`)
- * excluding `;`, and `app_name` / `app_version` additionally exclude `/`; this is
- * validated here as defense-in-depth and rejected (not silently coerced), the
- * same philosophy as the Python SDK.
- *
- * The `ua=` segment reports `node/unknown`: the n8n Cloud compatibility rules
- * forbid reading the Node runtime version (`process`/`globalThis`/`node:process`)
- * in shipped source, so the version degrades to `unknown`, mirroring the Python
- * SDK's defensive `httpx/unknown` fallback. The node's own package version
- * travels in the `User-Agent` header, not here.
+ * The header is fully automatic — no user configuration needed. The plugin
+ * version is passed in by the caller, keeping this module decoupled from the
+ * node file's `PACKAGE_VERSION` constant.
  */
 
 /** Leading literal that identifies the traffic source (the channel). */
@@ -40,11 +40,11 @@ const DELIMITER_REASONS: Record<string, string> = {
  * non-strings, non-ASCII, control characters, delimiters, and leading/trailing
  * whitespace to prevent segment forgery, header injection, and encoding errors.
  *
- * @param name - Parameter name for error messages (e.g. `"app_title"`).
+ * @param name - Parameter name for error messages (e.g. `"pluginVersion"`).
  * @param value - Value to validate.
  * @param options.forbidden - Extra delimiter characters to reject, in addition
- *   to `;`. `app_name` / `app_version` pass `"/"` because the `client=<name>/<version>`
- *   value is split on `/` downstream, so a `/` inside either half corrupts both.
+ *   to `;`. `pluginVersion` passes `"/"` because the `client=<name>/<version>`
+ *   value is split on `/` downstream, so a `/` inside the version corrupts both.
  * @throws {Error} If `value` is not a string, contains non-ASCII or control
  *   characters, has leading/trailing whitespace, or contains `;` or any
  *   character in `options.forbidden`.
@@ -79,61 +79,35 @@ export function validateAttributionArg(name: string, value: string, options?: { 
   }
 }
 
-/** Optional attribution arguments for {@link buildClientInfoHeader}. */
+/** Arguments for {@link buildClientInfoHeader}. */
 export interface AttributionArgs {
-  /** Optional caller application name, emitted as the `client=` segment. */
-  appName?: string
-  /** Optional version paired with `appName` as `client=<name>/<version>`. */
-  appVersion?: string
-  /** Optional caller-facing application title, emitted as the `title=` segment. */
-  appTitle?: string
-  /** Optional caller-facing application URL, emitted as the `url=` segment. */
-  appUrl?: string
+  /** Plugin version, emitted as `client=n8n-nodes-youdotcom/<version>`. */
+  pluginVersion: string
 }
+
+/** The fixed client name for this plugin, emitted in the `client=` segment. */
+const CLIENT_NAME = 'n8n-nodes-youdotcom'
 
 /**
  * Build the `X-Client-Info` header value for an outbound API request.
  *
- * @param args - Optional attribution values. Falsy values drop their segment
- *   entirely. `appVersion` is ignored when `appName` is falsy (the builder stays
- *   permissive so it can never be the thing that raises mid-request; the
- *   version-without-name pairing guard is enforced at the call site, mirroring
- *   the Python SDK's `You.__init__`).
+ * @param args - Plugin version for the `client=` segment.
  * @returns The header value to send over the wire.
- * @throws {Error} If any argument contains non-ASCII characters, control
- *   characters, or a delimiter (`;` for all of them, plus `/` for `appName` and
- *   `appVersion`).
+ * @throws {Error} If the plugin version contains non-ASCII characters, control
+ *   characters, or a delimiter (`;` or `/`).
  */
 export function buildClientInfoHeader(args: AttributionArgs): string {
-  const { appName, appVersion, appTitle, appUrl } = args
-  const parts: string[] = [SOURCE_TOKEN]
+  validateAttributionArg('pluginVersion', args.pluginVersion, { forbidden: '/' })
 
-  if (appName) {
-    validateAttributionArg('app_name', appName, { forbidden: '/' })
-    let client = appName
-    if (appVersion) {
-      validateAttributionArg('app_version', appVersion, { forbidden: '/' })
-      client = `${client}/${appVersion}`
-    }
-    parts.push(`client=${client}`)
-  }
-
-  if (appTitle) {
-    validateAttributionArg('app_title', appTitle)
-    parts.push(`title=${appTitle}`)
-  }
-
-  if (appUrl) {
-    validateAttributionArg('app_url', appUrl)
-    parts.push(`url=${appUrl}`)
-  }
+  const parts: string[] = [
+    SOURCE_TOKEN,
+    `client=${CLIENT_NAME}/${args.pluginVersion}`,
+  ]
 
   // The Node.js runtime version is not readable in n8n-Cloud-compatible shipped
   // source: the community-node rules forbid the `process`/`globalThis` globals
   // and the `node:process` import. Degrade to `unknown`, mirroring the Python
-  // SDK's defensive `httpx/unknown` fallback when a version is unavailable. The
-  // channel (`sdk`) and caller (`client=`) segments carry the useful analytics
-  // dimensions; the runtime version is constant across n8n Cloud traffic.
+  // SDK's defensive `httpx/unknown` fallback when a version is unavailable.
   parts.push('ua=node/unknown')
 
   return parts.join('; ')

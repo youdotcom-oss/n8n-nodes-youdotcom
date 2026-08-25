@@ -1,8 +1,6 @@
 import { describe, expect, mock, test } from 'bun:test'
-import type { IExecuteFunctions, INode, IDataObject } from 'n8n-workflow'
-import { NodeOperationError } from 'n8n-workflow'
+import type { IExecuteFunctions, INode, IDataObject, INodeExecutionData } from 'n8n-workflow'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
-import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
 
 /**
  * Unit tests for the execute methods' request body construction and
@@ -15,7 +13,6 @@ import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
  * - Frontier effort without background throws
  * - Invalid output_schema JSON throws
  * - Empty URLs throws
- * - Version-without-name guard throws
  * - crawl_timeout is stripped for highlights extraction
  * - extraction takes precedence over deprecated livecrawl
  */
@@ -46,7 +43,7 @@ function createMockContext(params: Record<string, unknown>): {
       return defaultValue
     },
     getInputData: () => [{ json: {} as IDataObject }],
-    getCredentials: async (_name: string) => credentials,
+    getCredentials: async () => credentials,
     continueOnFail: () => false,
     helpers: {
       httpRequestWithAuthentication: mock(async function (this: IExecuteFunctions, _credName: string, opts: Record<string, unknown>) {
@@ -57,9 +54,16 @@ function createMockContext(params: Record<string, unknown>): {
           qs: opts.qs,
           headers: opts.headers as Record<string, string>,
         })
-        // Return a mock response that works for both single-object (search/answer/research)
-        // and array (contents) callers.
-        return [{ json: { mock: true } }]
+        // Stream operation uses json: false, encoding: 'text' — returns a string.
+        if (opts.json === false || opts.encoding === 'text') {
+          return 'data: mock\nevent: message\n\n'
+        }
+        // Contents operation returns an array; all others return a single object.
+        const url = opts.url as string
+        if (url.includes('/contents')) {
+          return [{ mock: true }]
+        }
+        return { mock: true }
       }),
       constructExecutionMetaData: (data: unknown[]) => {
         if (Array.isArray(data)) return data.map((json) => ({ json: json as IDataObject }))
@@ -75,17 +79,15 @@ function createMockContext(params: Record<string, unknown>): {
   return { context, capturedRequests }
 }
 
+type CapturedRequest = { url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }
+
 /** Helper: run execute() with mocked context and capture requests */
-async function runExecute(params: Record<string, unknown>): Promise<typeof capturedRequestsRef> {
+async function runExecute(params: Record<string, unknown>): Promise<CapturedRequest[]> {
   const { context, capturedRequests } = createMockContext(params)
   const node = new YouDotCom()
   await node.execute.call(context)
   return capturedRequests
 }
-
-// Type hack to make TypeScript happy about the return type
-type capturedRequestsType = Array<{ url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }>
-const capturedRequestsRef: capturedRequestsType = []
 
 describe('Execute — Search request body', () => {
   test('sends POST with query in body', async () => {
@@ -191,6 +193,45 @@ describe('Execute — Search request body', () => {
     expect(body.livecrawl).toBe('web')
     expect(body.livecrawl_formats).toEqual(['markdown'])
   })
+
+  test('includes optional search params when set', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {
+        count: 10,
+        country: 'US',
+        freshness: 'day',
+        language: 'EN',
+        offset: 5,
+        safesearch: 'moderate',
+      },
+      __credentials: {},
+    })
+    const body = requests[0].body as Record<string, unknown>
+    expect(body.count).toBe(10)
+    expect(body.country).toBe('US')
+    expect(body.freshness).toBe('day')
+    expect(body.language).toBe('EN')
+    expect(body.offset).toBe(5)
+    expect(body.safesearch).toBe('moderate')
+  })
+
+  test('omits optional search params when not set', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {},
+      __credentials: {},
+    })
+    const body = requests[0].body as Record<string, unknown>
+    expect(body.count).toBeUndefined()
+    expect(body.country).toBeUndefined()
+    expect(body.freshness).toBeUndefined()
+    expect(body.language).toBeUndefined()
+    expect(body.offset).toBeUndefined()
+    expect(body.safesearch).toBeUndefined()
+  })
 })
 
 describe('Execute — Search domain mutual exclusion', () => {
@@ -263,7 +304,7 @@ describe('Execute — Contents request body', () => {
     expect(body.urls).toEqual(['https://a.com', 'https://b.com'])
   })
 
-  test('includes max_age when set (including 0)', async () => {
+  test('omits max_age when 0 (default, means no limit)', async () => {
     const requests = await runExecute({
       operation: 'contents',
       urls: ['https://a.com'],
@@ -271,7 +312,18 @@ describe('Execute — Contents request body', () => {
       __credentials: {},
     })
     const body = requests[0].body as Record<string, unknown>
-    expect(body.max_age).toBe(0)
+    expect(body.max_age).toBeUndefined()
+  })
+
+  test('includes max_age when greater than 0', async () => {
+    const requests = await runExecute({
+      operation: 'contents',
+      urls: ['https://a.com'],
+      contentsOptions: { max_age: 3600 },
+      __credentials: {},
+    })
+    const body = requests[0].body as Record<string, unknown>
+    expect(body.max_age).toBe(3600)
   })
 
   test('includes crawl_timeout when set', async () => {
@@ -283,6 +335,28 @@ describe('Execute — Contents request body', () => {
     })
     const body = requests[0].body as Record<string, unknown>
     expect(body.crawl_timeout).toBe(30)
+  })
+
+  test('includes formats when set', async () => {
+    const requests = await runExecute({
+      operation: 'contents',
+      urls: ['https://a.com'],
+      contentsOptions: { formats: ['markdown', 'html'] },
+      __credentials: {},
+    })
+    const body = requests[0].body as Record<string, unknown>
+    expect(body.formats).toEqual(['markdown', 'html'])
+  })
+
+  test('omits formats when not set', async () => {
+    const requests = await runExecute({
+      operation: 'contents',
+      urls: ['https://a.com'],
+      contentsOptions: {},
+      __credentials: {},
+    })
+    const body = requests[0].body as Record<string, unknown>
+    expect(body.formats).toBeUndefined()
   })
 
   test('throws when no URLs provided', async () => {
@@ -546,40 +620,28 @@ describe('Execute — Stream Research Task request', () => {
 })
 
 describe('Execute — Attribution header in request', () => {
-  test('sends X-Client-Info header from credentials', async () => {
-    const requests = await runExecute({
-      operation: 'search',
-      query: 'test',
-      searchOptions: {},
-      __credentials: {
-        appName: 'my-app',
-        appVersion: '1.0.0',
-      },
-    })
-    expect(requests[0].headers['X-Client-Info']).toBe('sdk; client=my-app/1.0.0; ua=node/unknown')
-  })
-
-  test('sends channel-only header when no attribution fields set', async () => {
+  test('sends X-Client-Info header with plugin identity', async () => {
     const requests = await runExecute({
       operation: 'search',
       query: 'test',
       searchOptions: {},
       __credentials: {},
     })
-    expect(requests[0].headers['X-Client-Info']).toBe('sdk; ua=node/unknown')
+    expect(requests[0].headers['X-Client-Info']).toBe(
+      'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
+    )
   })
 
-  test('throws when appVersion is set without appName', async () => {
-    await expect(
-      runExecute({
-        operation: 'search',
-        query: 'test',
-        searchOptions: {},
-        __credentials: {
-          appVersion: '1.0.0',
-        },
-      }),
-    ).rejects.toThrow('App Version requires App Name')
+  test('header is the same regardless of credentials', async () => {
+    const requests = await runExecute({
+      operation: 'contents',
+      urls: ['https://example.com'],
+      contentsOptions: {},
+      __credentials: {},
+    })
+    expect(requests[0].headers['X-Client-Info']).toBe(
+      'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
+    )
   })
 })
 
@@ -617,5 +679,26 @@ describe('Execute — Node documentationUrl', () => {
   test('node has documentationUrl pointing to n8n integration page', () => {
     const node = new YouDotCom()
     expect(node.description.documentationUrl).toBe('https://docs.you.com/docs/integrations/n8n')
+  })
+})
+
+describe('Execute — continueOnFail', () => {
+  test('pushes error item instead of throwing when continueOnFail is true', async () => {
+    const { context } = createMockContext({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {
+        include_domains: ['a.com'],
+        exclude_domains: ['b.com'],
+      },
+      __credentials: {},
+    })
+    // Override continueOnFail to return true
+    ;(context as unknown as { continueOnFail: () => boolean }).continueOnFail = () => true
+    const node = new YouDotCom()
+    const result = await node.execute.call(context)
+    expect(result[0]).toBeDefined()
+    expect(result[0].length).toBe(1)
+    expect((result[0][0] as INodeExecutionData).json).toHaveProperty('error')
   })
 })

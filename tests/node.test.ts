@@ -108,7 +108,7 @@ describe('YouDotCom Node', () => {
       expect((researchOption as INodePropertyOptions & { action?: string })?.action).toBe('Research a complex question')
     })
 
-    test('has exactly three operations', () => {
+    test('has exactly seven operations', () => {
       const operationProperty = getOperationProperty()
       expect(operationProperty?.options?.length).toBe(7)
     })
@@ -153,9 +153,9 @@ describe('YouDotCom Node', () => {
       return options?.find((o) => o.displayName === displayName)
     }
 
-    test('has query parameter as required', () => {
+    test('has search query parameter as required', () => {
       const queryProperty = node.description.properties.find(
-        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('answer'),
+        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('search'),
       )
       expect(queryProperty).toBeDefined()
       expect(queryProperty?.required).toBe(true)
@@ -388,7 +388,7 @@ describe('YouDotCom Node', () => {
       expect(inputProperty?.type).toBe('string')
     })
 
-    test('input parameter is only shown for research operation', () => {
+    test('input parameter is shown for research and finance_research operations', () => {
       const inputProperty = node.description.properties.find((p) => p.name === 'input')
       expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research', 'finance_research'])
     })
@@ -430,18 +430,21 @@ describe('YouDotCom Node', () => {
       expect(bgProperty).toBeDefined()
       expect(bgProperty?.type).toBe('boolean')
       expect(bgProperty?.default).toBe(false)
+      expect(bgProperty?.displayOptions?.show?.operation).toEqual(['research'])
     })
 
     test('has source control collection', () => {
       const scProperty = node.description.properties.find((p) => p.name === 'sourceControl')
       expect(scProperty).toBeDefined()
       expect(scProperty?.type).toBe('collection')
+      expect(scProperty?.displayOptions?.show?.operation).toEqual(['research'])
     })
 
     test('has output schema parameter', () => {
       const osProperty = node.description.properties.find((p) => p.name === 'outputSchema')
       expect(osProperty).toBeDefined()
       expect(osProperty?.type).toBe('string')
+      expect(osProperty?.displayOptions?.show?.operation).toEqual(['research'])
     })
 
     test('has finance research effort with deep and exhaustive', () => {
@@ -450,6 +453,7 @@ describe('YouDotCom Node', () => {
         | undefined
       expect(effortProperty).toBeDefined()
       expect(effortProperty?.default).toBe('deep')
+      expect(effortProperty?.displayOptions?.show?.operation).toEqual(['finance_research'])
       const effortValues = effortProperty?.options?.map((o) => o.value)
       expect(effortValues).toContain('deep')
       expect(effortValues).toContain('exhaustive')
@@ -515,16 +519,9 @@ describe('YouDotComApi Credentials', () => {
       expect(apiKeyProperty?.typeOptions?.password).toBe(true)
     })
 
-    test('has optional attribution fields', () => {
-      const names = ['appName', 'appVersion', 'appTitle', 'appUrl']
-      for (const name of names) {
-        const prop = credentials.properties.find((p) => p.name === name)
-        expect(prop, `expected credential field ${name}`).toBeDefined()
-        expect(prop?.type).toBe('string')
-        expect(prop?.required).toBeFalsy()
-        // Attribution fields are not secrets — they travel in X-Client-Info.
-        expect(prop?.typeOptions?.password).toBeFalsy()
-      }
+    test('has only API key property (attribution is automatic)', () => {
+      expect(credentials.properties.length).toBe(1)
+      expect(credentials.properties[0]?.name).toBe('apiKey')
     })
   })
 
@@ -540,8 +537,8 @@ describe('YouDotComApi Credentials', () => {
       expect(credentials.test).toBeDefined()
       expect(credentials.test.request.baseURL).toBe('https://ydc-index.io')
       expect(credentials.test.request.url).toBe('/v1/search')
-      expect(credentials.test.request.method).toBe('GET')
-      expect(credentials.test.request.qs?.query).toBe('test')
+      expect(credentials.test.request.method).toBe('POST')
+      expect((credentials.test.request as { body?: { query?: string } }).body?.query).toBe('test')
     })
   })
 })
