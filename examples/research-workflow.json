@@ -1,0 +1,45 @@
+{
+  "name": "You.com Background Research + Get Task",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "research",
+        "input": "What are the latest breakthroughs in quantum error correction?",
+        "researchEffort": "standard",
+        "background": true
+      },
+      "name": "Start Research",
+      "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get_research_task",
+        "taskId": "={{ $json.task_id }}"
+      },
+      "name": "Get Research Task",
+      "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
+      "typeVersion": 1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Start Research", "type": "main", "index": 0 }]]
+    },
+    "Start Research": {
+      "main": [[{ "node": "Get Research Task", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "version": 1
+}
