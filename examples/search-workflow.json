@@ -1,0 +1,33 @@
+{
+  "name": "You.com Search with Domain Filters",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "query": "AI research papers 2026",
+        "count": 5,
+        "include_domains": ["arxiv.org", "nature.com"],
+        "freshness": "month"
+      },
+      "name": "You.com",
+      "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
+      "typeVersion": 1,
+      "position": [300, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "You.com", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "version": 1
+}
