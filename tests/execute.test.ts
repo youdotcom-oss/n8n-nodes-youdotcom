@@ -30,7 +30,14 @@ const mockNode: INode = {
 /** Create a mock IExecuteFunctions that captures the HTTP request */
 function createMockContext(params: Record<string, unknown>): {
   context: IExecuteFunctions
-  capturedRequests: Array<{ url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }>
+  capturedRequests: Array<{
+    url: string
+    method: string
+    body: unknown
+    qs: unknown
+    headers: Record<string, string>
+    timeout: unknown
+  }>
 } {
   const capturedRequests: Array<{
     url: string
@@ -38,6 +45,7 @@ function createMockContext(params: Record<string, unknown>): {
     body: unknown
     qs: unknown
     headers: Record<string, string>
+    timeout: unknown
   }> = []
 
   const credentials = params.__credentials ?? {}
@@ -63,10 +71,11 @@ function createMockContext(params: Record<string, unknown>): {
           body: opts.body,
           qs: opts.qs,
           headers: opts.headers as Record<string, string>,
+          timeout: opts.timeout,
         })
         // Stream operation uses json: false, encoding: 'text' — returns a string.
         if (opts.json === false || opts.encoding === 'text') {
-          return 'data: mock\nevent: message\n\n'
+          return (params.__mockStreamResponse as string) ?? 'data: mock\nevent: message\n\n'
         }
         // Contents operation returns an array; all others return a single object.
         const url = opts.url as string
@@ -89,7 +98,14 @@ function createMockContext(params: Record<string, unknown>): {
   return { context, capturedRequests }
 }
 
-type CapturedRequest = { url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }
+type CapturedRequest = {
+  url: string
+  method: string
+  body: unknown
+  qs: unknown
+  headers: Record<string, string>
+  timeout: unknown
+}
 
 /** Helper: run execute() with mocked context and capture requests */
 async function runExecute(params: Record<string, unknown>): Promise<CapturedRequest[]> {
@@ -241,6 +257,17 @@ describe('Execute — Search request body', () => {
     expect(body.language).toBeUndefined()
     expect(body.offset).toBeUndefined()
     expect(body.safesearch).toBeUndefined()
+  })
+
+  test('sends offset: 0 explicitly rather than omitting it', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: { offset: 0 },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.offset).toBe(0)
   })
 })
 
@@ -626,6 +653,40 @@ describe('Execute — Stream Research Task request', () => {
       __credentials: {},
     })
     expect(requests[0]?.qs).toEqual({ from_id: 0 })
+  })
+
+  test('defaults to the 10-minute timeout', async () => {
+    const requests = await runExecute({
+      operation: 'stream_research_task',
+      taskId: 'abc-123',
+      __credentials: {},
+    })
+    expect(requests[0]?.timeout).toBe(600_000)
+  })
+
+  test('uses the 4-hour timeout when Expected Research Effort is frontier', async () => {
+    const requests = await runExecute({
+      operation: 'stream_research_task',
+      taskId: 'abc-123',
+      streamResearchEffort: 'frontier',
+      __credentials: {},
+    })
+    expect(requests[0]?.timeout).toBe(14_400_000)
+  })
+
+  test('returns one output item per parsed SSE event', async () => {
+    const { context } = createMockContext({
+      operation: 'stream_research_task',
+      taskId: 'abc-123',
+      __mockStreamResponse: 'event: task.progress\ndata: {"step":1}\n\ndata: {"step":2}\n\n',
+      __credentials: {},
+    })
+    const node = new YouDotCom()
+    const [output] = await node.execute.call(context)
+    expect(output).toEqual([
+      { json: { event: 'task.progress', data: { step: 1 } } },
+      { json: { event: 'message', data: { step: 2 } } },
+    ])
   })
 })
 

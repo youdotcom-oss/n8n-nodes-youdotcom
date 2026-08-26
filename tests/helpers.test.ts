@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { toStringArray, toUrlList } from '../nodes/YouDotCom/YouDotCom.node.ts'
+import { parseSseEvents, toStringArray, toUrlList } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
  * Unit tests for the helper functions used by the You.com n8n node.
@@ -92,5 +92,74 @@ describe('toUrlList', () => {
 
   test('preserves URLs with commas in query string when passed as array', () => {
     expect(toUrlList(['https://example.com/path?a=1,2,3'])).toEqual(['https://example.com/path?a=1,2,3'])
+  })
+})
+
+describe('parseSseEvents', () => {
+  test('returns empty array for empty input', () => {
+    expect(parseSseEvents('')).toEqual([])
+  })
+
+  test('parses a single event with a JSON data payload', () => {
+    expect(parseSseEvents('event: task.progress\ndata: {"step":1}\n\n')).toEqual([
+      { event: 'task.progress', data: { step: 1 } },
+    ])
+  })
+
+  test('parses multiple events separated by a blank line', () => {
+    expect(parseSseEvents('data: {"a":1}\n\ndata: {"a":2}\n\n')).toEqual([
+      { event: 'message', data: { a: 1 } },
+      { event: 'message', data: { a: 2 } },
+    ])
+  })
+
+  test('defaults event to "message" when no event field is present', () => {
+    expect(parseSseEvents('data: {"ok":true}\n\n')).toEqual([{ event: 'message', data: { ok: true } }])
+  })
+
+  test('keeps non-JSON data as raw text', () => {
+    expect(parseSseEvents('data: not json\n\n')).toEqual([{ event: 'message', data: 'not json' }])
+  })
+
+  test('joins multiple data lines with a newline before parsing', () => {
+    expect(parseSseEvents('data: line one\ndata: line two\n\n')).toEqual([
+      { event: 'message', data: 'line one\nline two' },
+    ])
+  })
+
+  test('captures the id field for reconnection', () => {
+    expect(parseSseEvents('id: 42\nevent: task.done\ndata: {"result":"ok"}\n\n')).toEqual([
+      { id: '42', event: 'task.done', data: { result: 'ok' } },
+    ])
+  })
+
+  test('ignores comment lines starting with a colon', () => {
+    expect(parseSseEvents(':heartbeat\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
+  })
+
+  test('handles CRLF line endings', () => {
+    expect(parseSseEvents('event: ping\r\ndata: {"a":1}\r\n\r\n')).toEqual([{ event: 'ping', data: { a: 1 } }])
+  })
+
+  test('filters out keep-alive ping comments interspersed between real events (live API shape)', () => {
+    const raw = [
+      'id: 0',
+      'event: connected',
+      'data: {"type": "connected", "task_id": "abc-123", "status": "running"}',
+      '',
+      ': ping - 2026-08-26 20:28:36.688791',
+      '',
+      ': ping - 2026-08-26 20:28:51.689578',
+      '',
+      'id: 4',
+      'event: response.done',
+      'data: {"seq_id": 4, "type": "response.done", "response": {"finished": true}}',
+      '',
+    ].join('\n')
+
+    expect(parseSseEvents(raw)).toEqual([
+      { id: '0', event: 'connected', data: { type: 'connected', task_id: 'abc-123', status: 'running' } },
+      { id: '4', event: 'response.done', data: { seq_id: 4, type: 'response.done', response: { finished: true } } },
+    ])
   })
 })

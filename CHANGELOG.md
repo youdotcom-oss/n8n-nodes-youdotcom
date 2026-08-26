@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - **Answer** operation (`POST /v1/answer`): synthesized answer with citations from web search results. Supports freshness, country, language, safesearch, and domain filters.
   - **Finance Research** operation (`POST /v1/finance_research`): finance-grade research answers with citations from financial data sources. Supports deep and exhaustive effort levels.
   - **Get Research Task** operation (`GET /v1/research/{task_id}`): poll the status of a background research task.
-  - **Stream Research Task** operation (`GET /v1/research/{task_id}/stream`): stream real-time updates for a background research task via Server-Sent Events, with a `from_id` parameter for reconnection.
+  - **Stream Research Task** operation (`GET /v1/research/{task_id}/stream`): reads the Server-Sent Events for a background research task and returns each event as a separate output item (parsed `id`/`event`/`data`), with a `from_id` parameter for reconnection. A client-side timeout (10 minutes, or 4 hours when the new `Expected Research Effort` parameter is set to Frontier) guards against a stalled connection hanging the node indefinitely.
 - **Contents parity with You.com Python SDK 3.1.2.** The Get Contents operation now supports the following:
   - **Multi-URL input.** The URLs field now supports multiple values via the + button. Comma-separated input is still accepted as a fallback for backward compatibility.
   - **Max Age.** New `max_age` parameter (0 or greater) controlling the maximum allowed age of cached content. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).

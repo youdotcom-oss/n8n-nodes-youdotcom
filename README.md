@@ -115,12 +115,13 @@ Poll the status of a background research task created with the Research operatio
 
 ### Stream Research Task
 
-Stream real-time updates for a background research task via Server-Sent Events. The connection closes automatically when the task reaches a terminal state.
+Reads the Server-Sent Events for a background research task and returns each event as a separate output item (`id`, `event`, `data`, with `data` parsed as JSON when possible). Because an n8n node returns its output all at once rather than incrementally, this waits for the connection to close — which happens automatically when the task reaches a terminal state (e.g. `response.done`) — before returning the full sequence of events; it does not deliver events to the workflow as they happen.
 
 | Parameter | Description |
 |-----------|-------------|
 | Task ID | The UUID of the background research task (required) |
 | From ID | Resume from a sequence number for reconnection (default: 0) |
+| Expected Research Effort | The research effort the task was created with. Only used to pick a client-side timeout for this request (10 minutes, or 4 hours for Frontier) — not sent to the API. |
 
 ## Credentials
 

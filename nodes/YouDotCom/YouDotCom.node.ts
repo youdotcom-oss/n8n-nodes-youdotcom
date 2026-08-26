@@ -64,6 +64,53 @@ function resolveDomainFilters(
   return { include, exclude, boost }
 }
 
+// Default client-side timeouts for Stream Research Task, mirroring the You.com
+// Python SDK's `_resolve_default_timeout`: frontier tasks can run for hours,
+// every other effort tier finishes well within 10 minutes.
+const STREAM_TIMEOUT_STANDARD_MS = 600_000
+const STREAM_TIMEOUT_FRONTIER_MS = 14_400_000
+
+export interface SseEvent extends IDataObject {
+  id?: string
+  event: string
+  data: IDataObject[string]
+}
+
+/** Parse a raw SSE response body into structured events (per the WHATWG SSE spec: fields are `field: value` lines, events are separated by a blank line, `data:` lines are joined with `\n`, and lines starting with `:` are comments). */
+export function parseSseEvents(raw: string): SseEvent[] {
+  const events: SseEvent[] = []
+
+  for (const block of raw.split(/\r?\n\r?\n/)) {
+    let id: string | undefined
+    let event = 'message'
+    const dataLines: string[] = []
+
+    for (const line of block.split(/\r?\n/)) {
+      if (!line || line.startsWith(':')) continue
+      const colonIndex = line.indexOf(':')
+      const field = colonIndex === -1 ? line : line.slice(0, colonIndex)
+      const value = colonIndex === -1 ? '' : line.slice(colonIndex + 1).replace(/^ /, '')
+      if (field === 'id') id = value
+      else if (field === 'event') event = value
+      else if (field === 'data') dataLines.push(value)
+    }
+
+    if (dataLines.length === 0 && id === undefined && event === 'message') continue
+
+    const rawData = dataLines.join('\n')
+    let data: IDataObject[string] = rawData
+    try {
+      data = JSON.parse(rawData)
+    } catch {
+      // Not JSON — keep the raw text.
+    }
+
+    events.push(id === undefined ? { event, data } : { id, event, data })
+  }
+
+  return events
+}
+
 /**
  * You.com node for n8n - Search, Contents, and Research operations.
  *
@@ -861,6 +908,23 @@ export class YouDotCom implements INodeType {
         default: 0,
         description: 'Resume from a sequence number for reconnection (default 0)',
       },
+      {
+        displayName: 'Expected Research Effort',
+        name: 'streamResearchEffort',
+        type: 'options',
+        displayOptions: {
+          show: {
+            operation: ['stream_research_task'],
+          },
+        },
+        default: 'standard',
+        description:
+          'The research effort the task was created with. Only used to pick a client-side timeout for this request — Frontier tasks can run for hours, everything else finishes well within 10 minutes. It is not sent to the API and does not need to match exactly.',
+        options: [
+          { name: 'Frontier (up to 4 Hours)', value: 'frontier' },
+          { name: 'Everything Else (up to 10 Minutes)', value: 'standard' },
+        ],
+      },
     ],
   }
 
@@ -973,7 +1037,7 @@ export class YouDotCom implements INodeType {
     if (options.country) body.country = options.country as string
     if (options.freshness) body.freshness = options.freshness as string
     if (options.language) body.language = options.language as string
-    if (options.offset) body.offset = options.offset as number
+    if (options.offset !== undefined) body.offset = options.offset as number
     if (options.safesearch) body.safesearch = options.safesearch as string
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
@@ -1226,9 +1290,11 @@ export class YouDotCom implements INodeType {
     context: IExecuteFunctions,
     itemIndex: number,
     clientInfoHeader: string,
-  ): Promise<IDataObject> {
+  ): Promise<IDataObject[]> {
     const taskId = context.getNodeParameter('taskId', itemIndex) as string
     const fromId = context.getNodeParameter('fromId', itemIndex, 0) as number
+    const streamResearchEffort = context.getNodeParameter('streamResearchEffort', itemIndex, 'standard') as string
+    const timeout = streamResearchEffort === 'frontier' ? STREAM_TIMEOUT_FRONTIER_MS : STREAM_TIMEOUT_STANDARD_MS
 
     const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
       method: 'GET',
@@ -1240,8 +1306,9 @@ export class YouDotCom implements INodeType {
       qs: { from_id: fromId },
       json: false,
       encoding: 'text',
+      timeout,
     })
 
-    return { stream: String(rawResponse) } as IDataObject
+    return parseSseEvents(String(rawResponse))
   }
 }
