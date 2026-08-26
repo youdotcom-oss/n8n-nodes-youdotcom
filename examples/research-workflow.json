@@ -22,13 +22,24 @@
     },
     {
       "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [500, 300],
+      "notes": "Standard research effort usually finishes within this window, but for production use, replace this with a loop that polls Get Research Task until status is \"completed\" rather than a fixed wait."
+    },
+    {
+      "parameters": {
         "operation": "get_research_task",
         "taskId": "={{ $json.task_id }}"
       },
       "name": "Get Research Task",
       "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
       "typeVersion": 1,
-      "position": [500, 300]
+      "position": [700, 300]
     }
   ],
   "connections": {
@@ -36,6 +47,9 @@
       "main": [[{ "node": "Start Research", "type": "main", "index": 0 }]]
     },
     "Start Research": {
+      "main": [[{ "node": "Wait", "type": "main", "index": 0 }]]
+    },
+    "Wait": {
       "main": [[{ "node": "Get Research Task", "type": "main", "index": 0 }]]
     }
   },
