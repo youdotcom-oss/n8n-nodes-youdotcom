@@ -99,10 +99,7 @@ const CLIENT_NAME = 'n8n-nodes-youdotcom'
 export function buildClientInfoHeader(args: AttributionArgs): string {
   validateAttributionArg('pluginVersion', args.pluginVersion, { forbidden: '/' })
 
-  const parts: string[] = [
-    SOURCE_TOKEN,
-    `client=${CLIENT_NAME}/${args.pluginVersion}`,
-  ]
+  const parts: string[] = [SOURCE_TOKEN, `client=${CLIENT_NAME}/${args.pluginVersion}`]
 
   // The Node.js runtime version is not readable in n8n-Cloud-compatible shipped
   // source: the community-node rules forbid the `process`/`globalThis` globals

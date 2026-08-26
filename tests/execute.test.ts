@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test'
-import type { IExecuteFunctions, INode, IDataObject, INodeExecutionData } from 'n8n-workflow'
+import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData } from 'n8n-workflow'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
@@ -32,7 +32,13 @@ function createMockContext(params: Record<string, unknown>): {
   context: IExecuteFunctions
   capturedRequests: Array<{ url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }>
 } {
-  const capturedRequests: Array<{ url: string; method: string; body: unknown; qs: unknown; headers: Record<string, string> }> = []
+  const capturedRequests: Array<{
+    url: string
+    method: string
+    body: unknown
+    qs: unknown
+    headers: Record<string, string>
+  }> = []
 
   const credentials = params.__credentials ?? {}
 
@@ -46,7 +52,11 @@ function createMockContext(params: Record<string, unknown>): {
     getCredentials: async () => credentials,
     continueOnFail: () => false,
     helpers: {
-      httpRequestWithAuthentication: mock(async function (this: IExecuteFunctions, _credName: string, opts: Record<string, unknown>) {
+      httpRequestWithAuthentication: mock(async function (
+        this: IExecuteFunctions,
+        _credName: string,
+        opts: Record<string, unknown>,
+      ) {
         capturedRequests.push({
           url: opts.url as string,
           method: opts.method as string,
@@ -98,9 +108,9 @@ describe('Execute — Search request body', () => {
       __credentials: {},
     })
     expect(requests.length).toBe(1)
-    expect(requests[0].method).toBe('POST')
-    expect(requests[0].url).toBe('https://ydc-index.io/v1/search')
-    expect((requests[0].body as Record<string, unknown>).query).toBe('test query')
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.url).toBe('https://ydc-index.io/v1/search')
+    expect((requests[0]?.body as Record<string, unknown>).query).toBe('test query')
   })
 
   test('includes domain filters when set', async () => {
@@ -112,7 +122,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.include_domains).toEqual(['example.com', 'test.com'])
   })
 
@@ -123,7 +133,7 @@ describe('Execute — Search request body', () => {
       searchOptions: { crawl_timeout: 30 },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.crawl_timeout).toBe(30)
   })
 
@@ -137,7 +147,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.crawl_timeout).toBeUndefined()
     expect((body.extraction as Record<string, unknown>).extraction_mode).toBe('highlights')
   })
@@ -155,7 +165,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     const extraction = body.extraction as Record<string, unknown>
     expect(extraction.extraction_mode).toBe('full_page')
     expect((extraction.full_page as Record<string, unknown>).extraction_formats).toEqual(['markdown'])
@@ -173,7 +183,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.livecrawl).toBeUndefined()
     expect(body.livecrawl_formats).toBeUndefined()
     expect(body.extraction).toBeDefined()
@@ -189,7 +199,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.livecrawl).toBe('web')
     expect(body.livecrawl_formats).toEqual(['markdown'])
   })
@@ -208,7 +218,7 @@ describe('Execute — Search request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.count).toBe(10)
     expect(body.country).toBe('US')
     expect(body.freshness).toBe('day')
@@ -224,7 +234,7 @@ describe('Execute — Search request body', () => {
       searchOptions: {},
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.count).toBeUndefined()
     expect(body.country).toBeUndefined()
     expect(body.freshness).toBeUndefined()
@@ -273,7 +283,7 @@ describe('Execute — Search domain mutual exclusion', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.exclude_domains).toEqual(['b.com'])
     expect(body.boost_domains).toEqual(['c.com'])
   })
@@ -287,9 +297,9 @@ describe('Execute — Contents request body', () => {
       contentsOptions: {},
       __credentials: {},
     })
-    expect(requests[0].method).toBe('POST')
-    expect(requests[0].url).toBe('https://ydc-index.io/v1/contents')
-    const body = requests[0].body as Record<string, unknown>
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.url).toBe('https://ydc-index.io/v1/contents')
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.urls).toEqual(['https://a.com', 'https://b.com'])
   })
 
@@ -300,7 +310,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: {},
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.urls).toEqual(['https://a.com', 'https://b.com'])
   })
 
@@ -311,7 +321,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: { max_age: 0 },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.max_age).toBeUndefined()
   })
 
@@ -322,7 +332,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: { max_age: 3600 },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.max_age).toBe(3600)
   })
 
@@ -333,7 +343,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: { crawl_timeout: 30 },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.crawl_timeout).toBe(30)
   })
 
@@ -344,7 +354,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: { formats: ['markdown', 'html'] },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.formats).toEqual(['markdown', 'html'])
   })
 
@@ -355,7 +365,7 @@ describe('Execute — Contents request body', () => {
       contentsOptions: {},
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.formats).toBeUndefined()
   })
 
@@ -382,9 +392,9 @@ describe('Execute — Research request body', () => {
       outputSchema: '',
       __credentials: {},
     })
-    expect(requests[0].method).toBe('POST')
-    expect(requests[0].url).toBe('https://api.you.com/v1/research')
-    const body = requests[0].body as Record<string, unknown>
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/research')
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.input).toBe('What is AI?')
     expect(body.research_effort).toBe('standard')
     expect(body.background).toBe(false)
@@ -414,7 +424,7 @@ describe('Execute — Research request body', () => {
       outputSchema: '',
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.research_effort).toBe('frontier')
     expect(body.background).toBe(true)
   })
@@ -433,7 +443,7 @@ describe('Execute — Research request body', () => {
       outputSchema: '',
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     const sc = body.source_control as Record<string, unknown>
     expect(sc.include_domains).toEqual(['arxiv.org'])
     expect(sc.freshness).toBe('month')
@@ -450,7 +460,7 @@ describe('Execute — Research request body', () => {
       outputSchema: '',
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.source_control).toBeUndefined()
   })
 
@@ -464,7 +474,7 @@ describe('Execute — Research request body', () => {
       outputSchema: '{"type":"object","properties":{"answer":{"type":"string"}}}',
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.output_schema).toEqual({ type: 'object', properties: { answer: { type: 'string' } } })
   })
 
@@ -508,9 +518,9 @@ describe('Execute — Answer request body', () => {
       answerOptions: {},
       __credentials: {},
     })
-    expect(requests[0].method).toBe('POST')
-    expect(requests[0].url).toBe('https://api.you.com/v1/answer')
-    const body = requests[0].body as Record<string, unknown>
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/answer')
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.query).toBe('What is the capital of France?')
   })
 
@@ -526,7 +536,7 @@ describe('Execute — Answer request body', () => {
       },
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.freshness).toBe('month')
     expect(body.country).toBe('US')
     expect(body.safesearch).toBe('moderate')
@@ -556,9 +566,9 @@ describe('Execute — Finance Research request body', () => {
       financeResearchEffort: 'deep',
       __credentials: {},
     })
-    expect(requests[0].method).toBe('POST')
-    expect(requests[0].url).toBe('https://api.you.com/v1/finance_research')
-    const body = requests[0].body as Record<string, unknown>
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/finance_research')
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.input).toBe('Semiconductor outlook 2026')
     expect(body.research_effort).toBe('deep')
   })
@@ -570,7 +580,7 @@ describe('Execute — Finance Research request body', () => {
       financeResearchEffort: 'exhaustive',
       __credentials: {},
     })
-    const body = requests[0].body as Record<string, unknown>
+    const body = requests[0]?.body as Record<string, unknown>
     expect(body.research_effort).toBe('exhaustive')
   })
 })
@@ -582,8 +592,8 @@ describe('Execute — Get Research Task request', () => {
       taskId: 'abc-123',
       __credentials: {},
     })
-    expect(requests[0].method).toBe('GET')
-    expect(requests[0].url).toBe('https://api.you.com/v1/research/abc-123')
+    expect(requests[0]?.method).toBe('GET')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/research/abc-123')
   })
 
   test('encodes task_id in URL', async () => {
@@ -592,7 +602,7 @@ describe('Execute — Get Research Task request', () => {
       taskId: 'task with spaces',
       __credentials: {},
     })
-    expect(requests[0].url).toBe('https://api.you.com/v1/research/task%20with%20spaces')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/research/task%20with%20spaces')
   })
 })
 
@@ -604,9 +614,9 @@ describe('Execute — Stream Research Task request', () => {
       fromId: 5,
       __credentials: {},
     })
-    expect(requests[0].method).toBe('GET')
-    expect(requests[0].url).toBe('https://api.you.com/v1/research/abc-123/stream')
-    expect(requests[0].qs).toEqual({ from_id: 5 })
+    expect(requests[0]?.method).toBe('GET')
+    expect(requests[0]?.url).toBe('https://api.you.com/v1/research/abc-123/stream')
+    expect(requests[0]?.qs).toEqual({ from_id: 5 })
   })
 
   test('defaults from_id to 0', async () => {
@@ -615,7 +625,7 @@ describe('Execute — Stream Research Task request', () => {
       taskId: 'abc-123',
       __credentials: {},
     })
-    expect(requests[0].qs).toEqual({ from_id: 0 })
+    expect(requests[0]?.qs).toEqual({ from_id: 0 })
   })
 })
 
@@ -627,9 +637,7 @@ describe('Execute — Attribution header in request', () => {
       searchOptions: {},
       __credentials: {},
     })
-    expect(requests[0].headers['X-Client-Info']).toBe(
-      'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
-    )
+    expect(requests[0]?.headers['X-Client-Info']).toBe('sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown')
   })
 
   test('header is the same regardless of credentials', async () => {
@@ -639,9 +647,7 @@ describe('Execute — Attribution header in request', () => {
       contentsOptions: {},
       __credentials: {},
     })
-    expect(requests[0].headers['X-Client-Info']).toBe(
-      'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
-    )
+    expect(requests[0]?.headers['X-Client-Info']).toBe('sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown')
   })
 })
 
@@ -649,7 +655,8 @@ describe('Execute — .node.json docs URLs', () => {
   // Read the node.json file and verify all URLs are correct
   test('all primary documentation URLs use full /docs/ paths', async () => {
     const nodeJson = await import('../nodes/YouDotCom/YouDotCom.node.json')
-    const urls = (nodeJson.default?.resources?.primaryDocumentation ?? nodeJson.resources?.primaryDocumentation) as Array<{ url: string }>
+    const urls = (nodeJson.default?.resources?.primaryDocumentation ??
+      nodeJson.resources?.primaryDocumentation) as Array<{ url: string }>
     expect(urls).toBeDefined()
     expect(urls.length).toBeGreaterThan(0)
     for (const { url } of urls) {
@@ -659,14 +666,19 @@ describe('Execute — .node.json docs URLs', () => {
 
   test('credential documentation URL points to n8n integration page', async () => {
     const nodeJson = await import('../nodes/YouDotCom/YouDotCom.node.json')
-    const credUrls = (nodeJson.default?.resources?.credentialDocumentation ?? nodeJson.resources?.credentialDocumentation) as Array<{ url: string }>
+    const credUrls = (nodeJson.default?.resources?.credentialDocumentation ??
+      nodeJson.resources?.credentialDocumentation) as Array<{ url: string }>
     expect(credUrls).toBeDefined()
-    expect(credUrls[0].url).toBe('https://docs.you.com/docs/integrations/n8n')
+    expect(credUrls[0]?.url).toBe('https://docs.you.com/docs/integrations/n8n')
   })
 
   test('includes API reference URLs for all 5 APIs', async () => {
     const nodeJson = await import('../nodes/YouDotCom/YouDotCom.node.json')
-    const urls = ((nodeJson.default?.resources?.primaryDocumentation ?? nodeJson.resources?.primaryDocumentation) as Array<{ url: string }>).map((u) => u.url)
+    const urls = (
+      (nodeJson.default?.resources?.primaryDocumentation ?? nodeJson.resources?.primaryDocumentation) as Array<{
+        url: string
+      }>
+    ).map((u) => u.url)
     expect(urls.some((u) => u.includes('/search/'))).toBe(true)
     expect(urls.some((u) => u.includes('/contents'))).toBe(true)
     expect(urls.some((u) => u.includes('/answer/'))).toBe(true)
@@ -698,7 +710,7 @@ describe('Execute — continueOnFail', () => {
     const node = new YouDotCom()
     const result = await node.execute.call(context)
     expect(result[0]).toBeDefined()
-    expect(result[0].length).toBe(1)
-    expect((result[0][0] as INodeExecutionData).json).toHaveProperty('error')
+    expect(result[0]?.length).toBe(1)
+    expect((result[0]?.[0] as INodeExecutionData).json).toHaveProperty('error')
   })
 })

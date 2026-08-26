@@ -954,7 +954,11 @@ export class YouDotCom implements INodeType {
     const query = context.getNodeParameter('query', itemIndex) as string
     const options = context.getNodeParameter('searchOptions', itemIndex, {}) as Record<string, unknown>
 
-    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, options, itemIndex)
+    const {
+      include: includeDomains,
+      exclude: excludeDomains,
+      boost: boostDomains,
+    } = resolveDomainFilters(context, options, itemIndex)
 
     // extraction takes precedence over the deprecated livecrawl/livecrawl_formats.
     const extraction = options.extraction as
@@ -1089,7 +1093,11 @@ export class YouDotCom implements INodeType {
     // source_control collection
     const sourceControl = context.getNodeParameter('sourceControl', itemIndex, {}) as Record<string, unknown>
     const scBody: Record<string, unknown> = {}
-    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, sourceControl, itemIndex)
+    const {
+      include: includeDomains,
+      exclude: excludeDomains,
+      boost: boostDomains,
+    } = resolveDomainFilters(context, sourceControl, itemIndex)
     if (includeDomains.length > 0) scBody.include_domains = includeDomains
     if (excludeDomains.length > 0) scBody.exclude_domains = excludeDomains
     if (boostDomains.length > 0) scBody.boost_domains = boostDomains
@@ -1134,7 +1142,11 @@ export class YouDotCom implements INodeType {
 
     const body: Record<string, unknown> = { query }
 
-    const { include: includeDomains, exclude: excludeDomains, boost: boostDomains } = resolveDomainFilters(context, options, itemIndex)
+    const {
+      include: includeDomains,
+      exclude: excludeDomains,
+      boost: boostDomains,
+    } = resolveDomainFilters(context, options, itemIndex)
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
     if (boostDomains.length > 0) body.boost_domains = boostDomains

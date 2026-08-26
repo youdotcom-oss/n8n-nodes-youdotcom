@@ -6,8 +6,9 @@
  * expected response shapes. They are automatically skipped when
  * `YDC_API_KEY` is not set (e.g., in CI).
  *
- * Expensive modes (deep, exhaustive, frontier research effort, and finance
- * research) are intentionally excluded to keep the suite fast and cheap.
+ * Expensive modes (deep, exhaustive, and frontier research effort) are
+ * intentionally excluded to keep the suite fast and cheap. Finance research
+ * is included with the default `deep` effort to verify the cost-cheapest path.
  *
  * Run: bun test tests/integration.test.ts --timeout 120000
  */
@@ -27,7 +28,12 @@ const HEADERS: Record<string, string> = {
 }
 
 async function postJson(url: string, body: Record<string, unknown>): Promise<Response> {
-  return fetch(url, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) })
+  return fetch(url, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60_000),
+  })
 }
 
 describe.skipIf(!API_KEY)('Live API Integration', () => {
@@ -151,7 +157,7 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       formats: ['markdown'],
     })
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = (await res.json()) as Array<Record<string, unknown>>
     expect(Array.isArray(data)).toBe(true)
     expect(data.length).toBe(2)
   })
@@ -272,7 +278,7 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
       const { value, done } = await reader.read()
       if (!done) {
         expect(value).toBeDefined()
-        expect(value!.length).toBeGreaterThan(0)
+        expect(value?.length).toBeGreaterThan(0)
       }
       // If done is true, the task already completed and the stream has no
       // remaining chunks — that is a valid state, not a failure.
