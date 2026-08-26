@@ -480,6 +480,13 @@ describe('YouDotCom Node', () => {
       expect(fromIdProperty).toBeDefined()
       expect(fromIdProperty?.displayOptions?.show?.operation).toEqual(['stream_research_task'])
     })
+
+    test('has streamResearchEffort parameter shown for stream operation, defaulting to standard', () => {
+      const streamResearchEffortProperty = node.description.properties.find((p) => p.name === 'streamResearchEffort')
+      expect(streamResearchEffortProperty).toBeDefined()
+      expect(streamResearchEffortProperty?.displayOptions?.show?.operation).toEqual(['stream_research_task'])
+      expect(streamResearchEffortProperty?.default).toBe('standard')
+    })
   })
 
   describe('Execute Method', () => {
