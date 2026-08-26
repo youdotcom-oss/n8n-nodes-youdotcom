@@ -17,7 +17,7 @@
         ],
         "contentsOptions": {
           "formats": ["markdown", "metadata"],
-          "crawl_timeout": 30,
+          "crawl_timeout": 20,
           "max_age": 86400
         }
       },
