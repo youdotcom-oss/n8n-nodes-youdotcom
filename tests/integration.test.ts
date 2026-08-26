@@ -27,7 +27,12 @@ const HEADERS: Record<string, string> = {
 }
 
 async function postJson(url: string, body: Record<string, unknown>): Promise<Response> {
-  return fetch(url, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) })
+  return fetch(url, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60_000),
+  })
 }
 
 describe.skipIf(!API_KEY)('Live API Integration', () => {

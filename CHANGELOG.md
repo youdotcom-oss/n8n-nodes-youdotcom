@@ -33,11 +33,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Bumped `package.json` version to 0.3.0 and the in-source `PACKAGE_VERSION` constant to match.
 - Set `n8n.strict` to `false`. The strict config-integrity check forbids any `eslint.config.mjs` change, which blocked scoping the `bun:test` allowance to test files. Shipped source (`credentials/`, `nodes/`) still passes the full n8n Cloud compatibility rule set; only non-shipped test files get the scoped override.
 
-### Changed
-
-- Bumped `package.json` version to 0.3.0 and the in-source `PACKAGE_VERSION` constant to match.
-- Set `n8n.strict` to `false`. The strict config-integrity check forbids any `eslint.config.mjs` change, which blocked scoping the `bun:test` allowance to test files. Shipped source (`credentials/`, `nodes/`) still passes the full n8n Cloud compatibility rule set; only non-shipped test files get the scoped override.
-
 ### Fixed
 
 - **`bun run lint` (`n8n-node lint`) now passes.** Added a scoped eslint override for `tests/**` allowing the `bun:test` import that the test runner requires. Test files are not shipped (only `dist/` is published), so the n8n Cloud compatibility rule is relaxed for them alone; shipped source (`credentials/`, `nodes/`) keeps the full rule set.
