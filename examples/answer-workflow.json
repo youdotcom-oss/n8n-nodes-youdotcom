@@ -12,8 +12,10 @@
       "parameters": {
         "operation": "answer",
         "query": "What are the main differences between RAG and fine-tuning?",
-        "freshness": "month",
-        "safesearch": "moderate"
+        "answerOptions": {
+          "freshness": "month",
+          "safesearch": "moderate"
+        }
       },
       "name": "You.com",
       "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",

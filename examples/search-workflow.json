@@ -12,9 +12,11 @@
       "parameters": {
         "operation": "search",
         "query": "AI research papers 2026",
-        "count": 5,
-        "include_domains": ["arxiv.org", "nature.com"],
-        "freshness": "month"
+        "searchOptions": {
+          "count": 5,
+          "include_domains": ["arxiv.org", "nature.com"],
+          "freshness": "month"
+        }
       },
       "name": "You.com",
       "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
