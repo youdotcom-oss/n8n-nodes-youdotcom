@@ -112,7 +112,7 @@ async function runExecute(params: Record<string, unknown>): Promise<CapturedRequ
   return capturedRequests
 }
 
-describe('Execute — Search request body', () => {
+describe('Execute — Web Search request body', () => {
   test('sends POST with query in body', async () => {
     const requests = await runExecute({
       operation: 'search',
@@ -281,7 +281,7 @@ describe('Execute — Search request body', () => {
   })
 })
 
-describe('Execute — Search domain mutual exclusion', () => {
+describe('Execute — Web Search domain mutual exclusion', () => {
   test('throws when include_domains combines with exclude_domains', async () => {
     await expect(
       runExecute({

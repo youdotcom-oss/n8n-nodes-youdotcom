@@ -16,11 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Contents parity with You.com Python SDK 3.1.2.** The Get Contents operation now supports the following:
   - **Multi-URL input.** The URLs field now supports multiple values via the + button. Comma-separated input is still accepted as a fallback for backward compatibility.
   - **Max Age.** New `max_age` parameter (0 or greater) controlling the maximum allowed age of cached content. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).
-- **Search parity with You.com Python SDK 3.1.2.** The Search operation now sends a `POST` request with a JSON body (matching the SDK) instead of a `GET` with query string, enabling the following new parameters:
+- **Web Search parity with You.com Python SDK 3.1.2.** The Web Search operation now sends a `POST` request with a JSON body (matching the SDK) instead of a `GET` with query string, enabling the following new parameters:
   - **Include Domains**, **Exclude Domains**, **Boost Domains** — multi-string domain filters (up to 500 each). Include Domains cannot combine with Exclude Domains or Boost Domains; the node blocks this at execution time with a clear error rather than round-tripping a 422.
   - **Extraction** collection with **Extraction Mode** (`highlights` or `full_page`) and a **Full Page** sub-collection containing **Extraction Formats** (`markdown`, `html`), replacing the removed Livecrawl options (see Removed below).
   - **Crawl Timeout** — max seconds to wait for page content (1-60, default 10). Automatically omitted when Extraction Mode is Highlights (the server rejects that combination).
-- **Example workflows.** Added five importable n8n workflow JSON files under `examples/` demonstrating Search (with domain filters), Get Contents (multi-URL), Answer, Research (background + Get Research Task), and Finance Research.
+- **Example workflows.** Added five importable n8n workflow JSON files under `examples/` demonstrating Web Search (with domain filters), Get Contents (multi-URL), Answer, Research (background + Get Research Task), and Finance Research.
 - **`X-Client-Info` attribution header on every outbound request.** The header is automatic and requires no user configuration. Wire format: `sdk; client=n8n-nodes-youdotcom/<version>; ua=node/unknown`. The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-youdotcom/<version>` segment identifies the plugin and its version, the same convention LangChain uses. The `ua=node/unknown` segment reports the Node.js runtime; the version degrades to `unknown` because n8n Cloud compatibility rules forbid reading `process` in shipped source. The existing `User-Agent` header is unchanged.
 
 ### Changed
@@ -31,7 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Removed
 
-- **Search's Livecrawl and Livecrawl Format parameters.** Replaced by the new Extraction collection; existing workflows that set Livecrawl must switch to Extraction (Full Page) to keep receiving full-page content.
+- **Web Search's Livecrawl and Livecrawl Format parameters.** Replaced by the new Extraction collection; existing workflows that set Livecrawl must switch to Extraction (Full Page) to keep receiving full-page content.
 
 ### Fixed
 

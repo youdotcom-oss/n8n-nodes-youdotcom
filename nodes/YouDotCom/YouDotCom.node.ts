@@ -30,7 +30,7 @@ function callYouDotComApi(
   })
 }
 
-/** Country dropdown options shared by Search, Research Source Control, and Answer. */
+/** Country dropdown options shared by Web Search, Research Source Control, and Answer. */
 const COUNTRY_OPTIONS = [
   { name: 'Any', value: '' },
   { name: 'Argentina', value: 'AR' },
@@ -71,7 +71,7 @@ const COUNTRY_OPTIONS = [
   { name: 'United States', value: 'US' },
 ]
 
-/** BCP 47 language dropdown options shared by Search and Answer. */
+/** BCP 47 language dropdown options shared by Web Search and Answer. */
 const LANGUAGE_OPTIONS = [
   { name: 'Arabic', value: 'AR' },
   { name: 'Basque', value: 'EU' },
@@ -126,7 +126,7 @@ const LANGUAGE_OPTIONS = [
   { name: 'Vietnamese', value: 'VI' },
 ]
 
-/** Freshness dropdown options shared by Search, Research Source Control, and Answer. */
+/** Freshness dropdown options shared by Web Search, Research Source Control, and Answer. */
 const FRESHNESS_OPTIONS = [
   { name: 'Any Time', value: '' },
   { name: 'Past Day', value: 'day' },
@@ -135,18 +135,18 @@ const FRESHNESS_OPTIONS = [
   { name: 'Past Year', value: 'year' },
 ]
 
-/** Freshness dropdown description shared by Search, Research Source Control, and Answer. */
+/** Freshness dropdown description shared by Web Search, Research Source Control, and Answer. */
 const FRESHNESS_DESCRIPTION =
   'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).'
 
-/** Safe Search dropdown options shared by Search and Answer. Answer additionally prepends a "Default" (server-chosen) option. */
+/** Safe Search dropdown options shared by Web Search and Answer. Answer additionally prepends a "Default" (server-chosen) option. */
 const SAFESEARCH_OPTIONS = [
   { name: 'Off', value: 'off' },
   { name: 'Moderate', value: 'moderate' },
   { name: 'Strict', value: 'strict' },
 ]
 
-/** Country dropdown description shared by Search and Answer (Research's Source Control uses its own, more specific wording). */
+/** Country dropdown description shared by Web Search and Answer (Research's Source Control uses its own, more specific wording). */
 const COUNTRY_DESCRIPTION = 'Country code that determines the geographical focus of results'
 
 /** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
@@ -179,7 +179,7 @@ export function toUrlList(value: unknown): string[] {
   return []
 }
 
-/** Copy the country/freshness/language/safesearch result filters (shared by Search and Answer) into body when set. */
+/** Copy the country/freshness/language/safesearch result filters (shared by Web Search and Answer) into body when set. */
 function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
   if (options.country) body.country = options.country as string
   if (options.freshness) body.freshness = options.freshness as string
@@ -210,7 +210,7 @@ function applyDomainFilters(
 }
 
 /**
- * You.com node for n8n - Search, Contents, and Research operations.
+ * You.com node for n8n - Web Search, Contents, and Research operations.
  *
  * NOTE: n8n framework requires class-based nodes that implement INodeType.
  */
@@ -278,7 +278,7 @@ export class YouDotCom implements INodeType {
             action: 'Research a complex question',
           },
           {
-            name: 'Search',
+            name: 'Web Search',
             value: 'search',
             description: 'Search the web and news using You.com',
             action: 'Search the web and news',
@@ -288,7 +288,7 @@ export class YouDotCom implements INodeType {
       },
 
       // ====================
-      // Search Parameters
+      // Web Search Parameters
       // ====================
       {
         displayName: 'Query',
@@ -306,7 +306,7 @@ export class YouDotCom implements INodeType {
           'The search query. Supports operators: site: (domain), filetype: (file type), + (require), - (exclude), AND, OR, NOT. Example: Python OR PyTorch -TensorFlow filetype:pdf',
       },
       {
-        displayName: 'Search Options',
+        displayName: 'Web Search Options',
         name: 'searchOptions',
         type: 'collection',
         placeholder: 'Add Option',
@@ -918,11 +918,11 @@ export class YouDotCom implements INodeType {
   }
 
   /**
-   * Execute Search operation
+   * Execute Web Search operation
    *
    * @param context - n8n execution context with helper methods
    * @param itemIndex - Index of the current item being processed
-   * @returns Search results from You.com API
+   * @returns Web Search results from You.com API
    */
   static async #executeSearch(
     context: IExecuteFunctions,

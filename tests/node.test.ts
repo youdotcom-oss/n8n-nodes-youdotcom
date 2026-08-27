@@ -12,7 +12,7 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * Test Strategy:
  * - Node description validation: Verify node metadata and configuration
  * - Credentials validation: Verify credential configuration
- * - Parameter validation: Verify all parameters for Search, Contents, and Research operations
+ * - Parameter validation: Verify all parameters for Web Search, Contents, and Research operations
  *
  * Note: Integration tests requiring actual n8n execution context are not included
  * as they would require spinning up an n8n instance.
@@ -88,7 +88,7 @@ describe('YouDotCom Node', () => {
 
       const searchOption = operationProperty?.options?.find((o) => o.value === 'search')
       expect(searchOption).toBeDefined()
-      expect(searchOption?.name).toBe('Search')
+      expect(searchOption?.name).toBe('Web Search')
       expect((searchOption as INodePropertyOptions & { action?: string })?.action).toBe('Search the web and news')
     })
 
@@ -137,7 +137,7 @@ describe('YouDotCom Node', () => {
     })
   })
 
-  describe('Search Parameters', () => {
+  describe('Web Search Parameters', () => {
     const getSearchOptionsProperty = (): PropertyWithOptions | undefined => {
       return node.description.properties.find((p) => p.name === 'searchOptions') as PropertyWithOptions | undefined
     }
@@ -465,7 +465,7 @@ describe('YouDotCom Node', () => {
       return options?.find((o) => o.displayName === displayName)
     }
 
-    test('has language option matching Search, including non-Latin-script languages', () => {
+    test('has language option matching Web Search, including non-Latin-script languages', () => {
       const languageOption = getAnswerOption('Language')
       expect(languageOption).toBeDefined()
       expect(languageOption?.type).toBe('options')

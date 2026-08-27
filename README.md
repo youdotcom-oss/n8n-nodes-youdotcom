@@ -12,7 +12,7 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ## Operations
 
-### Search
+### Web Search
 
 Search the web and news with up to date results. Supports advanced query operators (`site:`, `filetype:`, `+`, `-`, `AND`, `OR`, `NOT`), geographic/language filtering, domain allowlists/excludes/boosts, and content extraction (highlights or full page).
 
@@ -130,7 +130,7 @@ The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-yo
 ## Usage
 
 1. Add the "You.com" node to your workflow
-2. Select an operation (Search, Get Contents, Research, Answer, Finance Research, or Get Research Task)
+2. Select an operation (Web Search, Get Contents, Research, Answer, Finance Research, or Get Research Task)
 3. Configure the parameters for your chosen operation
 4. Run the workflow
 

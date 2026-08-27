@@ -22,7 +22,7 @@ export function attributionHeaders(clientInfoHeader: string): Record<string, str
   }
 }
 
-/** Base URL for the Search and Contents endpoints. Also used by the credential Test request. */
+/** Base URL for the Web Search and Contents endpoints. Also used by the credential Test request. */
 export const SEARCH_API_BASE = 'https://ydc-index.io'
 
 /** Base URL for the Research, Answer, and Finance Research endpoints. */

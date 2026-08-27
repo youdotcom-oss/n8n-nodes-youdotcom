@@ -58,7 +58,7 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     expect(backgroundTaskId).toBeTruthy()
   })
 
-  // ── Search ──────────────────────────────────────────────────────────
+  // ── Web Search ─────────────────────────────────────────────────────
 
   test('search returns results for a basic query', async () => {
     const res = await postJson(SEARCH_URL, { query: 'capital of France' })
