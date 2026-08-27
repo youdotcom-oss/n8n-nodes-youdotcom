@@ -35,21 +35,17 @@ const DELIMITER_REASONS: Record<string, string> = {
 /**
  * Validate an attribution header argument.
  *
- * Allows printable ASCII (`\x20`–`\x7e`) except `;` (always rejected because it
- * separates segments) and any extra characters in `options.forbidden`. Rejects
+ * Allows printable ASCII (`\x20`–`\x7e`) except `;` and `/`, the two delimiters
+ * used in the header grammar (`sdk; client=<name>/<version>; ua=...`). Rejects
  * non-strings, non-ASCII, control characters, delimiters, and leading/trailing
  * whitespace to prevent segment forgery, header injection, and encoding errors.
  *
  * @param name - Parameter name for error messages (e.g. `"pluginVersion"`).
  * @param value - Value to validate.
- * @param options.forbidden - Extra delimiter characters to reject, in addition
- *   to `;`. `pluginVersion` passes `"/"` because the `client=<name>/<version>`
- *   value is split on `/` downstream, so a `/` inside the version corrupts both.
  * @throws {Error} If `value` is not a string, contains non-ASCII or control
- *   characters, has leading/trailing whitespace, or contains `;` or any
- *   character in `options.forbidden`.
+ *   characters, has leading/trailing whitespace, or contains `;` or `/`.
  */
-export function validateAttributionArg(name: string, value: string, options?: { forbidden?: string }): void {
+export function validateAttributionArg(name: string, value: string): void {
   if (typeof value !== 'string') {
     throw new Error(
       `${name} must be a string; got ${value === null ? 'null' : typeof value}. ` +
@@ -59,9 +55,6 @@ export function validateAttributionArg(name: string, value: string, options?: { 
   if (value !== value.trim()) {
     throw new Error(`${name} must not have leading or trailing whitespace; got ${JSON.stringify(value)}`)
   }
-  // `;` is unconditional: it is the delimiter this validator exists to protect,
-  // so an override must never be able to drop it.
-  const rejected = `;${options?.forbidden ?? ''}`
   let i = 0
   for (const ch of value) {
     const code = ch.codePointAt(0) ?? 0
@@ -70,9 +63,9 @@ export function validateAttributionArg(name: string, value: string, options?: { 
         `${name} must be printable ASCII; got ${JSON.stringify(ch)} (U+${code.toString(16).toUpperCase().padStart(4, '0')}) at position ${i}`,
       )
     }
-    if (rejected.includes(ch)) {
+    if (ch === ';' || ch === '/') {
       throw new Error(
-        `${name} must not contain ${JSON.stringify(ch)} (${DELIMITER_REASONS[ch] ?? 'a delimiter'}); found at position ${i}`,
+        `${name} must not contain ${JSON.stringify(ch)} (${DELIMITER_REASONS[ch]}); found at position ${i}`,
       )
     }
     i++
@@ -97,7 +90,7 @@ const CLIENT_NAME = 'n8n-nodes-youdotcom'
  *   characters, or a delimiter (`;` or `/`).
  */
 export function buildClientInfoHeader(args: AttributionArgs): string {
-  validateAttributionArg('pluginVersion', args.pluginVersion, { forbidden: '/' })
+  validateAttributionArg('pluginVersion', args.pluginVersion)
 
   const parts: string[] = [SOURCE_TOKEN, `client=${CLIENT_NAME}/${args.pluginVersion}`]
 

@@ -24,14 +24,12 @@ Great for monitoring mentions, pulling recent news, or feeding live data into AI
 | Boost Domains | Boost ranking for these domains without excluding others (up to 500). Cannot combine with Include Domains |
 | Count | Max results per section, 1-100 (default: 10) |
 | Country | Two-letter country code to focus results geographically |
-| Crawl Timeout | Max seconds to wait for page content with extraction or livecrawl, 1-60 (default: 10). Ignored when Extraction Mode is Highlights |
+| Crawl Timeout | Max seconds to wait for page content with extraction, 1-60 (default: 10). Ignored when Extraction Mode is Highlights |
 | Exclude Domains | Filter out results from these domains (up to 500). Cannot combine with Include Domains |
-| Extraction | Controls how page content is attached to each result. Preferred over the deprecated Livecrawl options; when set, Livecrawl is omitted |
+| Extraction | Controls how page content is attached to each result |
 | Freshness | Filter by recency: day, week, month, or year |
 | Include Domains | Restrict results to these domains, strict allowlist (up to 500). Cannot combine with Exclude Domains or Boost Domains |
 | Language | BCP 47 language code for results (default: EN) |
-| Livecrawl | Deprecated; use Extraction instead. Fetch full page content for web, news, or all results |
-| Livecrawl Format | Deprecated; use Extraction (Full Page, Extraction Formats) instead. Format for livecrawled content: markdown or HTML |
 | Offset | Pagination offset, 0-9 |
 | Safe Search | Content filter: off, moderate, or strict |
 

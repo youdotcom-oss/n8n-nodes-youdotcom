@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - **Max Age.** New `max_age` parameter (0 or greater) controlling the maximum allowed age of cached content. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).
 - **Search parity with You.com Python SDK 3.1.2.** The Search operation now sends a `POST` request with a JSON body (matching the SDK) instead of a `GET` with query string, enabling the following new parameters:
   - **Include Domains**, **Exclude Domains**, **Boost Domains** — multi-string domain filters (up to 500 each). Include Domains cannot combine with Exclude Domains or Boost Domains; the node blocks this at execution time with a clear error rather than round-tripping a 422.
-  - **Extraction** collection with **Extraction Mode** (`highlights` or `full_page`) and a **Full Page** sub-collection containing **Extraction Formats** (`markdown`, `html`). When Extraction is set, the deprecated Livecrawl options are omitted from the request.
+  - **Extraction** collection with **Extraction Mode** (`highlights` or `full_page`) and a **Full Page** sub-collection containing **Extraction Formats** (`markdown`, `html`), replacing the removed Livecrawl options (see Removed below).
   - **Crawl Timeout** — max seconds to wait for page content (1-60, default 10). Automatically omitted when Extraction Mode is Highlights (the server rejects that combination).
 - **Example workflows.** Added five importable n8n workflow JSON files under `examples/` demonstrating Search (with domain filters), Get Contents (multi-URL), Answer, Research (background + Get Research Task), and Finance Research.
 - **`X-Client-Info` attribution header on every outbound request.** The header is automatic and requires no user configuration. Wire format: `sdk; client=n8n-nodes-youdotcom/<version>; ua=node/unknown`. The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-youdotcom/<version>` segment identifies the plugin and its version, the same convention LangChain uses. The `ua=node/unknown` segment reports the Node.js runtime; the version degrades to `unknown` because n8n Cloud compatibility rules forbid reading `process` in shipped source. The existing `User-Agent` header is unchanged.
@@ -28,8 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Bumped `package.json` version to 0.6.0 and the in-source `PACKAGE_VERSION` constant to match.
 - **Contents Crawl Timeout default changed from 30 to 10**, matching the Python SDK default.
-- **Livecrawl and Livecrawl Format are marked deprecated.** Use the new Extraction collection instead. When both Extraction and Livecrawl are set, Extraction takes precedence and Livecrawl is omitted.
 - Set `n8n.strict` to `false`. The strict config-integrity check forbids any `eslint.config.mjs` change, which blocked scoping the `bun:test` allowance to test files. Shipped source (`credentials/`, `nodes/`) still passes the full n8n Cloud compatibility rule set; only non-shipped test files get the scoped override.
+
+### Removed
+
+- **Search's Livecrawl and Livecrawl Format parameters.** Replaced by the new Extraction collection; existing workflows that set Livecrawl must switch to Extraction (Full Page) to keep receiving full-page content.
 
 ### Fixed
 

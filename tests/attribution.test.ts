@@ -64,50 +64,45 @@ describe('buildClientInfoHeader — grammar', () => {
 })
 
 describe('validateAttributionArg — validation rules', () => {
-  test('rejects semicolon regardless of forbidden override', () => {
-    expect(() => validateAttributionArg('x', 'a;b')).toThrow('the segment delimiter')
-    expect(() => validateAttributionArg('x', 'a;b', { forbidden: '' })).toThrow('the segment delimiter')
-    expect(() => validateAttributionArg('x', 'a;b', { forbidden: '/' })).toThrow('the segment delimiter')
+  test('rejects semicolon', () => {
+    expect(() => validateAttributionArg('pluginVersion', 'a;b')).toThrow('the segment delimiter')
   })
 
-  test('forbidden is additive: "/" rejected only when forbidden includes it', () => {
-    expect(() => validateAttributionArg('app_name', 'a/b', { forbidden: '/' })).toThrow(
-      'the client=<name>/<version> delimiter',
-    )
-    // "/" is allowed when not forbidden (only ";" is always-on)
-    expect(() => validateAttributionArg('app_title', 'a/b')).not.toThrow()
+  test('rejects slash', () => {
+    expect(() => validateAttributionArg('pluginVersion', 'a/b')).toThrow('the client=<name>/<version> delimiter')
   })
 
   test('rejects non-ASCII characters', () => {
-    expect(() => validateAttributionArg('app_title', 'Café Assistant')).toThrow('app_title')
-    expect(() => validateAttributionArg('app_title', '検索アシスタント')).toThrow('printable ASCII')
+    expect(() => validateAttributionArg('pluginVersion', 'Café')).toThrow('pluginVersion')
+    expect(() => validateAttributionArg('pluginVersion', '検索')).toThrow('printable ASCII')
   })
 
   test('rejects control characters', () => {
-    expect(() => validateAttributionArg('app_title', 'null\x00byte')).toThrow('printable ASCII')
-    expect(() => validateAttributionArg('app_title', 'line\nbreak')).toThrow('printable ASCII')
-    expect(() => validateAttributionArg('app_title', 'line\rbreak')).toThrow('printable ASCII')
+    expect(() => validateAttributionArg('pluginVersion', 'null\x00byte')).toThrow('printable ASCII')
+    expect(() => validateAttributionArg('pluginVersion', 'line\nbreak')).toThrow('printable ASCII')
+    expect(() => validateAttributionArg('pluginVersion', 'line\rbreak')).toThrow('printable ASCII')
   })
 
   test('rejects leading or trailing whitespace', () => {
-    expect(() => validateAttributionArg('app_name', ' ')).toThrow('whitespace')
-    expect(() => validateAttributionArg('app_name', '  ')).toThrow('whitespace')
-    expect(() => validateAttributionArg('app_name', ' acme')).toThrow('whitespace')
-    expect(() => validateAttributionArg('app_name', 'acme ')).toThrow('whitespace')
-    expect(() => validateAttributionArg('app_name', '\t')).toThrow('whitespace')
+    expect(() => validateAttributionArg('pluginVersion', ' ')).toThrow('whitespace')
+    expect(() => validateAttributionArg('pluginVersion', '  ')).toThrow('whitespace')
+    expect(() => validateAttributionArg('pluginVersion', ' 0.6.0')).toThrow('whitespace')
+    expect(() => validateAttributionArg('pluginVersion', '0.6.0 ')).toThrow('whitespace')
+    expect(() => validateAttributionArg('pluginVersion', '\t')).toThrow('whitespace')
   })
 
   test('rejects non-string values, naming the parameter', () => {
-    expect(() => validateAttributionArg('app_title', 123 as unknown as string)).toThrow('app_title must be a string')
-    expect(() => validateAttributionArg('app_title', ['a', 'b'] as unknown as string)).toThrow(
-      'app_title must be a string',
+    expect(() => validateAttributionArg('pluginVersion', 123 as unknown as string)).toThrow(
+      'pluginVersion must be a string',
+    )
+    expect(() => validateAttributionArg('pluginVersion', ['a', 'b'] as unknown as string)).toThrow(
+      'pluginVersion must be a string',
     )
   })
 
   test('accepts valid printable ASCII', () => {
-    expect(() => validateAttributionArg('app_title', 'MyAgent')).not.toThrow()
-    expect(() => validateAttributionArg('app_title', 'Special&Chars!')).not.toThrow()
-    expect(() => validateAttributionArg('app_name', 'acme-bot', { forbidden: '/' })).not.toThrow()
+    expect(() => validateAttributionArg('pluginVersion', '0.6.0')).not.toThrow()
+    expect(() => validateAttributionArg('pluginVersion', '1.0.0-beta+build.1')).not.toThrow()
   })
 })
 
