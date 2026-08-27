@@ -9,6 +9,7 @@ import type {
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 import { buildClientInfoHeader } from './Attribution.ts'
+import { RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
 
 /** Signature shared by every `#execute*` operation handler. */
 type OperationHandler = (
@@ -22,12 +23,6 @@ const PACKAGE_VERSION = '0.6.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
-
-/** Base URL for the Search and Contents endpoints. Also used by the credential Test request. */
-export const SEARCH_API_BASE = 'https://ydc-index.io'
-
-/** Base URL for the Research, Answer, and Finance Research endpoints. */
-const RESEARCH_API_BASE = 'https://api.you.com'
 
 /** Headers sent with every outbound API request. */
 function attributionHeaders(clientInfoHeader: string): Record<string, string> {
@@ -154,6 +149,10 @@ const FRESHNESS_OPTIONS = [
   { name: 'Past Year', value: 'year' },
 ]
 
+/** Freshness dropdown description shared by Search, Research Source Control, and Answer. */
+const FRESHNESS_DESCRIPTION =
+  'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).'
+
 /** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
 export function toStringArray(value: unknown): string[] {
   if (value == null) return []
@@ -182,6 +181,14 @@ export function toUrlList(value: unknown): string[] {
       .filter((s) => s !== '')
   }
   return []
+}
+
+/** Copy the country/freshness/language/safesearch result filters (shared by Search and Answer) into body when set. */
+function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
+  if (options.country) body.country = options.country as string
+  if (options.freshness) body.freshness = options.freshness as string
+  if (options.language) body.language = options.language as string
+  if (options.safesearch) body.safesearch = options.safesearch as string
 }
 
 /** Validate domain filter mutual exclusion and return the three normalized arrays. */
@@ -218,9 +225,13 @@ export interface SseEvent extends IDataObject {
 /** Parse a raw SSE response body into structured events (per the WHATWG SSE spec: fields are `field: value` lines, events are separated by a blank line, `data:` lines are joined with `\n`, and lines starting with `:` are comments). */
 export function parseSseEvents(raw: string): SseEvent[] {
   const events: SseEvent[] = []
+  // Per the SSE spec, the "last event ID" buffer persists across the whole
+  // stream — a block without an `id:` line inherits the most recent one,
+  // it does not reset to undefined. (`event:`, by contrast, does reset each
+  // block; only `id` carries forward.)
+  let id: string | undefined
 
   for (const block of raw.split(/\r?\n\r?\n/)) {
-    let id: string | undefined
     let event = 'message'
     const dataLines: string[] = []
 
@@ -478,8 +489,7 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description:
-              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
+            description: FRESHNESS_DESCRIPTION,
             options: FRESHNESS_OPTIONS,
           },
           {
@@ -730,8 +740,7 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description:
-              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
+            description: FRESHNESS_DESCRIPTION,
             options: FRESHNESS_OPTIONS,
           },
           {
@@ -850,8 +859,7 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description:
-              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
+            description: FRESHNESS_DESCRIPTION,
             options: FRESHNESS_OPTIONS,
           },
           {
@@ -1021,11 +1029,8 @@ export class YouDotCom implements INodeType {
     const body: Record<string, unknown> = { query }
 
     if (options.count != null) body.count = options.count as number
-    if (options.country) body.country = options.country as string
-    if (options.freshness) body.freshness = options.freshness as string
-    if (options.language) body.language = options.language as string
+    applyResultFilters(body, options)
     if (options.offset !== undefined) body.offset = options.offset as number
-    if (options.safesearch) body.safesearch = options.safesearch as string
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
     if (boostDomains.length > 0) body.boost_domains = boostDomains
@@ -1192,10 +1197,7 @@ export class YouDotCom implements INodeType {
     if (includeDomains.length > 0) body.include_domains = includeDomains
     if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
     if (boostDomains.length > 0) body.boost_domains = boostDomains
-    if (options.freshness) body.freshness = options.freshness
-    if (options.country) body.country = options.country
-    if (options.language) body.language = options.language
-    if (options.safesearch) body.safesearch = options.safesearch
+    applyResultFilters(body, options)
 
     const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',

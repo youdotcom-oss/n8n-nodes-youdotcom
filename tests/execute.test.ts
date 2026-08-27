@@ -433,6 +433,19 @@ describe('Execute — Research request body', () => {
     expect(body.background).toBe(false)
   })
 
+  test('defaults background to false when omitted', async () => {
+    const requests = await runExecute({
+      operation: 'research',
+      input: 'What is AI?',
+      researchEffort: 'standard',
+      sourceControl: {},
+      outputSchema: '',
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.background).toBe(false)
+  })
+
   test('throws when frontier effort is set without background', async () => {
     await expect(
       runExecute({
@@ -602,6 +615,21 @@ describe('Execute — Answer request body', () => {
         __credentials: {},
       }),
     ).rejects.toThrow('Include Domains cannot be combined')
+  })
+
+  test('allows exclude_domains with boost_domains', async () => {
+    const requests = await runExecute({
+      operation: 'answer',
+      query: 'test',
+      answerOptions: {
+        exclude_domains: ['b.com'],
+        boost_domains: ['c.com'],
+      },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.exclude_domains).toEqual(['b.com'])
+    expect(body.boost_domains).toEqual(['c.com'])
   })
 })
 

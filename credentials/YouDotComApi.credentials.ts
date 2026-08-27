@@ -1,5 +1,5 @@
 import type { IAuthenticateGeneric, ICredentialTestRequest, ICredentialType, INodeProperties } from 'n8n-workflow'
-import { SEARCH_API_BASE } from '../nodes/YouDotCom/YouDotCom.node.ts'
+import { SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
 
 /**
  * You.com API credentials for n8n.

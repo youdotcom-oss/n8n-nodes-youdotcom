@@ -137,12 +137,21 @@ describe('parseSseEvents', () => {
     expect(parseSseEvents(':heartbeat\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
   })
 
-  test('does not dispatch an id-only frame with no data (SSE spec: empty data buffer never dispatches)', () => {
-    expect(parseSseEvents('id: 7\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
+  test('does not dispatch an id-only frame with no data, but its id persists to the next dispatched event', () => {
+    expect(parseSseEvents('id: 7\n\ndata: {"a":1}\n\n')).toEqual([{ id: '7', event: 'message', data: { a: 1 } }])
   })
 
   test('does not dispatch an event-only frame with no data', () => {
     expect(parseSseEvents('event: ping\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
+  })
+
+  test('id persists across events until a new id is sent (SSE last-event-ID semantics)', () => {
+    const raw = ['id: 1', 'data: {"a":1}', '', 'data: {"a":2}', '', 'id: 2', 'data: {"a":3}', ''].join('\n')
+    expect(parseSseEvents(raw)).toEqual([
+      { id: '1', event: 'message', data: { a: 1 } },
+      { id: '1', event: 'message', data: { a: 2 } },
+      { id: '2', event: 'message', data: { a: 3 } },
+    ])
   })
 
   test('handles CRLF line endings', () => {
