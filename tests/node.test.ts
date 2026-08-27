@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import type { INodePropertyOptions } from 'n8n-workflow'
 import { NodeConnectionTypes } from 'n8n-workflow'
 import { YouDotComApi } from '../credentials/YouDotComApi.credentials.ts'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { PACKAGE_VERSION, USER_AGENT } from '../nodes/YouDotCom/constants.ts'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
@@ -544,6 +546,12 @@ describe('YouDotComApi Credentials', () => {
       expect(credentials.test.request.method).toBe('POST')
       expect((credentials.test.request as { body?: { query?: string } }).body?.query).toBe('test')
       expect(credentials.test.request.json).toBe(true)
+    })
+
+    test('tags the test request with the same attribution headers as real requests', () => {
+      const headers = credentials.test.request.headers as Record<string, string> | undefined
+      expect(headers?.['User-Agent']).toBe(USER_AGENT)
+      expect(headers?.['X-Client-Info']).toBe(buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION }))
     })
   })
 })

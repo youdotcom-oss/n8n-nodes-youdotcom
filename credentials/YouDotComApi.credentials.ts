@@ -1,5 +1,6 @@
 import type { IAuthenticateGeneric, ICredentialTestRequest, ICredentialType, INodeProperties } from 'n8n-workflow'
-import { SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { PACKAGE_VERSION, SEARCH_API_BASE, USER_AGENT } from '../nodes/YouDotCom/constants.ts'
 
 /**
  * You.com API credentials for n8n.
@@ -40,6 +41,10 @@ export class YouDotComApi implements ICredentialType {
       baseURL: SEARCH_API_BASE,
       url: '/v1/search',
       method: 'POST',
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Client-Info': buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION }),
+      },
       body: {
         query: 'test',
         count: 1,

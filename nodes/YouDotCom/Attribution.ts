@@ -39,13 +39,14 @@ const DELIMITER_REASONS: Record<string, string> = {
  *
  * Allows printable ASCII (`\x20`–`\x7e`) except `;` and `/`, the two delimiters
  * used in the header grammar (`sdk; client=<name>/<version>; ua=...`). Rejects
- * non-strings, non-ASCII, control characters, delimiters, and leading/trailing
- * whitespace to prevent segment forgery, header injection, and encoding errors.
+ * non-strings, empty strings, non-ASCII, control characters, delimiters, and
+ * leading/trailing whitespace to prevent segment forgery, header injection,
+ * and encoding errors.
  *
  * @param name - Parameter name for error messages (e.g. `"pluginVersion"`).
  * @param value - Value to validate.
- * @throws {Error} If `value` is not a string, contains non-ASCII or control
- *   characters, has leading/trailing whitespace, or contains `;` or `/`.
+ * @throws {Error} If `value` is not a string, is empty, contains non-ASCII or
+ *   control characters, has leading/trailing whitespace, or contains `;` or `/`.
  */
 export function validateAttributionArg(name: string, value: string): void {
   if (typeof value !== 'string') {
@@ -53,6 +54,9 @@ export function validateAttributionArg(name: string, value: string): void {
       `${name} must be a string; got ${value === null ? 'null' : typeof value}. ` +
         'Every attribution value is interpolated into the header verbatim, so a non-string would corrupt the segment.',
     )
+  }
+  if (value === '') {
+    throw new Error(`${name} must not be empty`)
   }
   if (value !== value.trim()) {
     throw new Error(`${name} must not have leading or trailing whitespace; got ${JSON.stringify(value)}`)

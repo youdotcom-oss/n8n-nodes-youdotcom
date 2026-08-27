@@ -100,6 +100,10 @@ describe('validateAttributionArg — validation rules', () => {
     )
   })
 
+  test('rejects an empty string', () => {
+    expect(() => validateAttributionArg('pluginVersion', '')).toThrow('pluginVersion must not be empty')
+  })
+
   test('accepts valid printable ASCII', () => {
     expect(() => validateAttributionArg('pluginVersion', '0.6.0')).not.toThrow()
     expect(() => validateAttributionArg('pluginVersion', '1.0.0-beta+build.1')).not.toThrow()

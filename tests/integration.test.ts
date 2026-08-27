@@ -17,8 +17,7 @@
 
 import { beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
 import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
-import { RESEARCH_API_BASE, SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
-import { PACKAGE_VERSION, USER_AGENT } from '../nodes/YouDotCom/YouDotCom.node.ts'
+import { PACKAGE_VERSION, RESEARCH_API_BASE, SEARCH_API_BASE, USER_AGENT } from '../nodes/YouDotCom/constants.ts'
 
 setDefaultTimeout(120_000)
 

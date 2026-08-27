@@ -1,5 +1,7 @@
 import { describe, expect, mock, test } from 'bun:test'
 import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData } from 'n8n-workflow'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { PACKAGE_VERSION } from '../nodes/YouDotCom/constants.ts'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
@@ -739,6 +741,8 @@ describe('Execute — Stream Research Task request', () => {
 })
 
 describe('Execute — Attribution header in request', () => {
+  const expectedClientInfo = buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION })
+
   test('sends X-Client-Info header with plugin identity', async () => {
     const requests = await runExecute({
       operation: 'search',
@@ -746,7 +750,7 @@ describe('Execute — Attribution header in request', () => {
       searchOptions: {},
       __credentials: {},
     })
-    expect(requests[0]?.headers['X-Client-Info']).toBe('sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown')
+    expect(requests[0]?.headers['X-Client-Info']).toBe(expectedClientInfo)
   })
 
   test('header is the same regardless of credentials', async () => {
@@ -756,7 +760,7 @@ describe('Execute — Attribution header in request', () => {
       contentsOptions: {},
       __credentials: {},
     })
-    expect(requests[0]?.headers['X-Client-Info']).toBe('sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown')
+    expect(requests[0]?.headers['X-Client-Info']).toBe(expectedClientInfo)
   })
 })
 

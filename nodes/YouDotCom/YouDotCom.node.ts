@@ -9,7 +9,7 @@ import type {
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 import { buildClientInfoHeader } from './Attribution.ts'
-import { PLUGIN_NAME, RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
+import { PACKAGE_VERSION, RESEARCH_API_BASE, SEARCH_API_BASE, USER_AGENT } from './constants.ts'
 
 /** Signature shared by every `#execute*` operation handler. */
 type OperationHandler = (
@@ -17,12 +17,6 @@ type OperationHandler = (
   itemIndex: number,
   clientInfoHeader: string,
 ) => Promise<IDataObject | IDataObject[]>
-
-/** Package version for User-Agent header. Updated automatically by publish workflow. */
-export const PACKAGE_VERSION = '0.6.0'
-
-/** User-Agent string for API requests */
-export const USER_AGENT = `${PLUGIN_NAME}/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/${PLUGIN_NAME})`
 
 /** Headers sent with every outbound API request. */
 function attributionHeaders(clientInfoHeader: string): Record<string, string> {
@@ -1028,7 +1022,7 @@ export class YouDotCom implements INodeType {
 
     if (options.count != null) body.count = options.count as number
     applyResultFilters(body, options)
-    if (options.offset !== undefined) body.offset = options.offset as number
+    if (options.offset != null) body.offset = options.offset as number
     applyDomainFilters(context, body, options, itemIndex)
 
     if (hasExtraction) {
