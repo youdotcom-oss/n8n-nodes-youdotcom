@@ -14,6 +14,14 @@ export const PACKAGE_VERSION = '0.6.0'
 /** User-Agent string for API requests. Also used by the credential Test request. */
 export const USER_AGENT = `${PLUGIN_NAME}/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/${PLUGIN_NAME})`
 
+/** Headers sent with every outbound API request, including the credential Test request. */
+export function attributionHeaders(clientInfoHeader: string): Record<string, string> {
+  return {
+    'User-Agent': USER_AGENT,
+    'X-Client-Info': clientInfoHeader,
+  }
+}
+
 /** Base URL for the Search and Contents endpoints. Also used by the credential Test request. */
 export const SEARCH_API_BASE = 'https://ydc-index.io'
 

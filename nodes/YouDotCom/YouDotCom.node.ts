@@ -9,7 +9,7 @@ import type {
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 import { buildClientInfoHeader } from './Attribution.ts'
-import { PACKAGE_VERSION, RESEARCH_API_BASE, SEARCH_API_BASE, USER_AGENT } from './constants.ts'
+import { attributionHeaders, PACKAGE_VERSION, RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
 
 /** Signature shared by every `#execute*` operation handler. */
 type OperationHandler = (
@@ -17,14 +17,6 @@ type OperationHandler = (
   itemIndex: number,
   clientInfoHeader: string,
 ) => Promise<IDataObject | IDataObject[]>
-
-/** Headers sent with every outbound API request. */
-function attributionHeaders(clientInfoHeader: string): Record<string, string> {
-  return {
-    'User-Agent': USER_AGENT,
-    'X-Client-Info': clientInfoHeader,
-  }
-}
 
 /** Issue an authenticated You.com API request with the attribution headers attached. */
 function callYouDotComApi(
