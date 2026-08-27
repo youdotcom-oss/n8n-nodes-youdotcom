@@ -9,7 +9,7 @@ import type {
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 import { buildClientInfoHeader } from './Attribution.ts'
-import { RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
+import { PLUGIN_NAME, RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
 
 /** Signature shared by every `#execute*` operation handler. */
 type OperationHandler = (
@@ -19,10 +19,10 @@ type OperationHandler = (
 ) => Promise<IDataObject | IDataObject[]>
 
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.6.0'
+export const PACKAGE_VERSION = '0.6.0'
 
 /** User-Agent string for API requests */
-const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
+export const USER_AGENT = `${PLUGIN_NAME}/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/${PLUGIN_NAME})`
 
 /** Headers sent with every outbound API request. */
 function attributionHeaders(clientInfoHeader: string): Record<string, string> {
@@ -152,6 +152,13 @@ const FRESHNESS_OPTIONS = [
 /** Freshness dropdown description shared by Search, Research Source Control, and Answer. */
 const FRESHNESS_DESCRIPTION =
   'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).'
+
+/** Safe Search dropdown options shared by Search and Answer. Answer additionally prepends a "Default" (server-chosen) option. */
+const SAFESEARCH_OPTIONS = [
+  { name: 'Off', value: 'off' },
+  { name: 'Moderate', value: 'moderate' },
+  { name: 'Strict', value: 'strict' },
+]
 
 /** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
 export function toStringArray(value: unknown): string[] {
@@ -529,11 +536,7 @@ export class YouDotCom implements INodeType {
             type: 'options',
             default: 'moderate',
             description: 'Content moderation filter level',
-            options: [
-              { name: 'Off', value: 'off' },
-              { name: 'Moderate', value: 'moderate' },
-              { name: 'Strict', value: 'strict' },
-            ],
+            options: SAFESEARCH_OPTIONS,
           },
         ],
       },
@@ -887,12 +890,7 @@ export class YouDotCom implements INodeType {
             type: 'options',
             default: '',
             description: 'Content moderation filter level',
-            options: [
-              { name: 'Default', value: '' },
-              { name: 'Off', value: 'off' },
-              { name: 'Moderate', value: 'moderate' },
-              { name: 'Strict', value: 'strict' },
-            ],
+            options: [{ name: 'Default', value: '' }, ...SAFESEARCH_OPTIONS],
           },
         ],
       },
@@ -1145,8 +1143,7 @@ export class YouDotCom implements INodeType {
     if (includeDomains.length > 0) scBody.include_domains = includeDomains
     if (excludeDomains.length > 0) scBody.exclude_domains = excludeDomains
     if (boostDomains.length > 0) scBody.boost_domains = boostDomains
-    if (sourceControl.freshness) scBody.freshness = sourceControl.freshness
-    if (sourceControl.country) scBody.country = sourceControl.country
+    applyResultFilters(scBody, sourceControl)
     if (Object.keys(scBody).length > 0) body.source_control = scBody
 
     // output_schema (JSON string → object)

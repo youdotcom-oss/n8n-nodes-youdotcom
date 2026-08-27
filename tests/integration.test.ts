@@ -14,17 +14,20 @@
  */
 
 import { beforeAll, describe, expect, test } from 'bun:test'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { RESEARCH_API_BASE, SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
+import { PACKAGE_VERSION, USER_AGENT } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 const API_KEY = Bun.env.YDC_API_KEY ?? ''
-const SEARCH_URL = 'https://ydc-index.io/v1/search'
-const CONTENTS_URL = 'https://ydc-index.io/v1/contents'
-const API_BASE = 'https://api.you.com/v1'
+const SEARCH_URL = `${SEARCH_API_BASE}/v1/search`
+const CONTENTS_URL = `${SEARCH_API_BASE}/v1/contents`
+const API_BASE = `${RESEARCH_API_BASE}/v1`
 
 const HEADERS: Record<string, string> = {
   'X-API-Key': API_KEY,
   'Content-Type': 'application/json',
-  'User-Agent': 'n8n-nodes-youdotcom/0.6.0 (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)',
-  'X-Client-Info': 'sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown',
+  'User-Agent': USER_AGENT,
+  'X-Client-Info': buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION }),
 }
 
 async function postJson(url: string, body: Record<string, unknown>): Promise<Response> {

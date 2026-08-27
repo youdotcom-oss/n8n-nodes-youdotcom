@@ -23,6 +23,8 @@
  * node file's `PACKAGE_VERSION` constant.
  */
 
+import { PLUGIN_NAME } from './constants.ts'
+
 /** Leading literal that identifies the traffic source (the channel). */
 const SOURCE_TOKEN = 'sdk'
 
@@ -78,9 +80,6 @@ export interface AttributionArgs {
   pluginVersion: string
 }
 
-/** The fixed client name for this plugin, emitted in the `client=` segment. */
-const CLIENT_NAME = 'n8n-nodes-youdotcom'
-
 /**
  * Build the `X-Client-Info` header value for an outbound API request.
  *
@@ -92,7 +91,7 @@ const CLIENT_NAME = 'n8n-nodes-youdotcom'
 export function buildClientInfoHeader(args: AttributionArgs): string {
   validateAttributionArg('pluginVersion', args.pluginVersion)
 
-  const parts: string[] = [SOURCE_TOKEN, `client=${CLIENT_NAME}/${args.pluginVersion}`]
+  const parts: string[] = [SOURCE_TOKEN, `client=${PLUGIN_NAME}/${args.pluginVersion}`]
 
   // The Node.js runtime version is not readable in n8n-Cloud-compatible shipped
   // source: the community-node rules forbid the `process`/`globalThis` globals
