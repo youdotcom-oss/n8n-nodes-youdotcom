@@ -766,7 +766,7 @@ export class YouDotCom implements INodeType {
         default: '',
         placeholder: '{"type":"object","properties":{...},"required":[...]}',
         description:
-          'Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, and exhaustive effort. Not supported with lite.',
+          'Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, exhaustive, and frontier effort. Not supported with lite.',
       },
       {
         displayName: 'Finance Research Effort',

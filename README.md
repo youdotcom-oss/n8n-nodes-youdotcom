@@ -65,7 +65,7 @@ Perfect for competitive analysis, market research, technical due diligence, or a
 | Research Effort | Controls depth and speed (see below, default: standard) |
 | Background | Whether to queue the task and return a task handle immediately instead of waiting inline. Use Get/Stream Research Task to retrieve the result |
 | Source Control | Beta. Controls which web sources the research agent searches (domain filters, freshness, country) |
-| Output Schema | Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, and exhaustive effort |
+| Output Schema | Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, exhaustive, and frontier effort. Not supported with lite |
 
 **Research Effort levels:**
 
@@ -89,7 +89,7 @@ Great for factual questions that need a quick, sourced answer.
 | Freshness | Filter by recency: day, week, month, or year |
 | Country | Country code for geographical focus |
 | Language | BCP 47 language tag for results |
-| Safe Search | Content filter: off, moderate, or strict |
+| Safe Search | Content filter: Default (server-chosen), off, moderate, or strict |
 | Include Domains | Only return results from these domains (max 500). Cannot combine with Exclude or Boost |
 | Exclude Domains | Filter out results from these domains (max 500). Cannot combine with Include |
 | Boost Domains | Boost ranking for these domains (max 500). Cannot combine with Include |
@@ -132,7 +132,7 @@ Reads the Server-Sent Events for a background research task and returns each eve
 Every API request includes an `X-Client-Info` attribution header that identifies this plugin automatically. No configuration is needed. The header looks like:
 
 ```
-X-Client-Info: sdk; client=n8n-nodes-youdotcom/0.6.0; ua=node/unknown
+X-Client-Info: sdk; client=n8n-nodes-youdotcom/<version>; ua=node/unknown
 ```
 
 The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-youdotcom/<version>` segment identifies the plugin and its version, the same convention LangChain uses (`client=langchain-youdotcom/<version>`). The `ua=node/unknown` segment reports the Node.js runtime; the version degrades to `unknown` because n8n Cloud compatibility rules forbid reading `process` in shipped source.
