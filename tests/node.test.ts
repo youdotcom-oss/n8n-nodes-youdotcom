@@ -283,7 +283,6 @@ describe('YouDotCom Node', () => {
       expect(ct?.typeOptions?.maxValue).toBe(60)
       expect(ct?.default).toBe(10)
     })
-
   })
 
   describe('Contents Parameters', () => {

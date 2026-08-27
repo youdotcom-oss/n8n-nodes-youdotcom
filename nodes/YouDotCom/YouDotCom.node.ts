@@ -322,8 +322,7 @@ export class YouDotCom implements INodeType {
             type: 'collection',
             placeholder: 'Add extraction',
             default: {},
-            description:
-              'Controls how page content is attached to each result.',
+            description: 'Controls how page content is attached to each result.',
             options: [
               {
                 displayName: 'Extraction Mode',
