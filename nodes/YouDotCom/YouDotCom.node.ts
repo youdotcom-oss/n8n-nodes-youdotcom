@@ -303,7 +303,7 @@ export class YouDotCom implements INodeType {
             },
             default: 10,
             description:
-              'Maximum seconds to wait for page content when extraction (Full Page) or the deprecated Livecrawl is enabled (1-60, default 10). Ignored when Extraction Mode is Highlights.',
+              'Maximum seconds to wait for page content when extraction (Full Page) is enabled (1-60, default 10). Ignored when Extraction Mode is Highlights.',
           },
           {
             displayName: 'Exclude Domains',
@@ -323,7 +323,7 @@ export class YouDotCom implements INodeType {
             placeholder: 'Add extraction',
             default: {},
             description:
-              'Controls how page content is attached to each result. Preferred over the deprecated Livecrawl options; when set, Livecrawl is omitted from the request.',
+              'Controls how page content is attached to each result.',
             options: [
               {
                 displayName: 'Extraction Mode',
@@ -376,7 +376,8 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description: 'Filter results by recency',
+            description:
+              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
             options: [
               { name: 'Any Time', value: '' },
               { name: 'Past Day', value: 'day' },
@@ -404,6 +405,7 @@ export class YouDotCom implements INodeType {
             description: 'Language of the web results (BCP 47 format)',
             options: [
               { name: 'Arabic', value: 'AR' },
+              { name: 'Basque', value: 'EU' },
               { name: 'Bengali', value: 'BN' },
               { name: 'Bulgarian', value: 'BG' },
               { name: 'Catalan', value: 'CA' },
@@ -427,7 +429,7 @@ export class YouDotCom implements INodeType {
               { name: 'Hungarian', value: 'HU' },
               { name: 'Icelandic', value: 'IS' },
               { name: 'Italian', value: 'IT' },
-              { name: 'Japanese', value: 'JP' },
+              { name: 'Japanese', value: 'JA' },
               { name: 'Kannada', value: 'KN' },
               { name: 'Korean', value: 'KO' },
               { name: 'Latvian', value: 'LV' },
@@ -453,36 +455,6 @@ export class YouDotCom implements INodeType {
               { name: 'Turkish', value: 'TR' },
               { name: 'Ukrainian', value: 'UK' },
               { name: 'Vietnamese', value: 'VI' },
-            ],
-          },
-          {
-            displayName: 'Livecrawl',
-            name: 'livecrawl',
-            type: 'options',
-            default: '',
-            description: 'Deprecated; use Extraction instead. Fetch and return full page content for search results.',
-            options: [
-              { name: 'None', value: '' },
-              { name: 'Web Results Only', value: 'web' },
-              { name: 'News Results Only', value: 'news' },
-              { name: 'All Results', value: 'all' },
-            ],
-          },
-          {
-            displayName: 'Livecrawl Format',
-            name: 'livecrawl_formats',
-            type: 'options',
-            default: 'markdown',
-            description:
-              'Deprecated; use Extraction (Full Page, Extraction Formats) instead. Format for livecrawled content.',
-            displayOptions: {
-              show: {
-                livecrawl: ['web', 'news', 'all'],
-              },
-            },
-            options: [
-              { name: 'HTML', value: 'html' },
-              { name: 'Markdown', value: 'markdown' },
             ],
           },
           {
@@ -612,7 +584,7 @@ export class YouDotCom implements INodeType {
         },
         default: '',
         placeholder: 'e.g., Which global cities improved air quality the most over the past 10 years?',
-        description: 'The research question or complex query requiring in-depth investigation',
+        description: 'The research question or complex query requiring in-depth investigation (max 40,000 characters)',
       },
       {
         displayName: 'Research Effort',
@@ -693,10 +665,48 @@ export class YouDotCom implements INodeType {
           {
             displayName: 'Country',
             name: 'country',
-            type: 'string',
+            type: 'options',
             default: '',
-            placeholder: 'e.g., US',
             description: 'ISO 3166-1 alpha-2 country code to geographically focus web results',
+            options: [
+              { name: 'Any', value: '' },
+              { name: 'Argentina', value: 'AR' },
+              { name: 'Australia', value: 'AU' },
+              { name: 'Austria', value: 'AT' },
+              { name: 'Belgium', value: 'BE' },
+              { name: 'Brazil', value: 'BR' },
+              { name: 'Canada', value: 'CA' },
+              { name: 'Chile', value: 'CL' },
+              { name: 'China', value: 'CN' },
+              { name: 'Denmark', value: 'DK' },
+              { name: 'Finland', value: 'FI' },
+              { name: 'France', value: 'FR' },
+              { name: 'Germany', value: 'DE' },
+              { name: 'Hong Kong', value: 'HK' },
+              { name: 'India', value: 'IN' },
+              { name: 'Indonesia', value: 'ID' },
+              { name: 'Italy', value: 'IT' },
+              { name: 'Japan', value: 'JP' },
+              { name: 'Malaysia', value: 'MY' },
+              { name: 'Mexico', value: 'MX' },
+              { name: 'Netherlands', value: 'NL' },
+              { name: 'New Zealand', value: 'NZ' },
+              { name: 'Norway', value: 'NO' },
+              { name: 'Philippines', value: 'PH' },
+              { name: 'Poland', value: 'PL' },
+              { name: 'Portugal', value: 'PT' },
+              { name: 'Russia', value: 'RU' },
+              { name: 'Saudi Arabia', value: 'SA' },
+              { name: 'South Africa', value: 'ZA' },
+              { name: 'South Korea', value: 'KR' },
+              { name: 'Spain', value: 'ES' },
+              { name: 'Sweden', value: 'SE' },
+              { name: 'Switzerland', value: 'CH' },
+              { name: 'Taiwan', value: 'TW' },
+              { name: 'Turkey', value: 'TR' },
+              { name: 'United Kingdom', value: 'GB' },
+              { name: 'United States', value: 'US' },
+            ],
           },
           {
             displayName: 'Exclude Domains',
@@ -714,7 +724,8 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description: 'Filter results by recency',
+            description:
+              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
             options: [
               { name: 'Any Time', value: '' },
               { name: 'Past Day', value: 'day' },
@@ -819,10 +830,48 @@ export class YouDotCom implements INodeType {
           {
             displayName: 'Country',
             name: 'country',
-            type: 'string',
+            type: 'options',
             default: '',
-            placeholder: 'e.g., US',
             description: 'Country code that determines the geographical focus of results',
+            options: [
+              { name: 'Any', value: '' },
+              { name: 'Argentina', value: 'AR' },
+              { name: 'Australia', value: 'AU' },
+              { name: 'Austria', value: 'AT' },
+              { name: 'Belgium', value: 'BE' },
+              { name: 'Brazil', value: 'BR' },
+              { name: 'Canada', value: 'CA' },
+              { name: 'Chile', value: 'CL' },
+              { name: 'China', value: 'CN' },
+              { name: 'Denmark', value: 'DK' },
+              { name: 'Finland', value: 'FI' },
+              { name: 'France', value: 'FR' },
+              { name: 'Germany', value: 'DE' },
+              { name: 'Hong Kong', value: 'HK' },
+              { name: 'India', value: 'IN' },
+              { name: 'Indonesia', value: 'ID' },
+              { name: 'Italy', value: 'IT' },
+              { name: 'Japan', value: 'JP' },
+              { name: 'Malaysia', value: 'MY' },
+              { name: 'Mexico', value: 'MX' },
+              { name: 'Netherlands', value: 'NL' },
+              { name: 'New Zealand', value: 'NZ' },
+              { name: 'Norway', value: 'NO' },
+              { name: 'Philippines', value: 'PH' },
+              { name: 'Poland', value: 'PL' },
+              { name: 'Portugal', value: 'PT' },
+              { name: 'Russia', value: 'RU' },
+              { name: 'Saudi Arabia', value: 'SA' },
+              { name: 'South Africa', value: 'ZA' },
+              { name: 'South Korea', value: 'KR' },
+              { name: 'Spain', value: 'ES' },
+              { name: 'Sweden', value: 'SE' },
+              { name: 'Switzerland', value: 'CH' },
+              { name: 'Taiwan', value: 'TW' },
+              { name: 'Turkey', value: 'TR' },
+              { name: 'United Kingdom', value: 'GB' },
+              { name: 'United States', value: 'US' },
+            ],
           },
           {
             displayName: 'Exclude Domains',
@@ -839,7 +888,8 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description: 'Filter results by recency',
+            description:
+              'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).',
             options: [
               { name: 'Any Time', value: '' },
               { name: 'Past Day', value: 'day' },
@@ -862,10 +912,58 @@ export class YouDotCom implements INodeType {
           {
             displayName: 'Language',
             name: 'language',
-            type: 'string',
+            type: 'options',
             default: '',
-            placeholder: 'e.g., EN',
             description: 'BCP 47 language tag for the web results',
+            options: [
+              { name: 'Default', value: '' },
+              { name: 'Arabic', value: 'AR' },
+              { name: 'Basque', value: 'EU' },
+              { name: 'Bengali', value: 'BN' },
+              { name: 'Bulgarian', value: 'BG' },
+              { name: 'Catalan', value: 'CA' },
+              { name: 'Croatian', value: 'HR' },
+              { name: 'Czech', value: 'CS' },
+              { name: 'Danish', value: 'DA' },
+              { name: 'Dutch', value: 'NL' },
+              { name: 'English', value: 'EN' },
+              { name: 'English (UK)', value: 'EN-GB' },
+              { name: 'Estonian', value: 'ET' },
+              { name: 'Finnish', value: 'FI' },
+              { name: 'French', value: 'FR' },
+              { name: 'Galician', value: 'GL' },
+              { name: 'German', value: 'DE' },
+              { name: 'Greek', value: 'EL' },
+              { name: 'Gujarati', value: 'GU' },
+              { name: 'Hebrew', value: 'HE' },
+              { name: 'Hindi', value: 'HI' },
+              { name: 'Hungarian', value: 'HU' },
+              { name: 'Icelandic', value: 'IS' },
+              { name: 'Italian', value: 'IT' },
+              { name: 'Kannada', value: 'KN' },
+              { name: 'Korean', value: 'KO' },
+              { name: 'Latvian', value: 'LV' },
+              { name: 'Lithuanian', value: 'LT' },
+              { name: 'Malay', value: 'MS' },
+              { name: 'Malayalam', value: 'ML' },
+              { name: 'Marathi', value: 'MR' },
+              { name: 'Norwegian', value: 'NB' },
+              { name: 'Polish', value: 'PL' },
+              { name: 'Punjabi', value: 'PA' },
+              { name: 'Romanian', value: 'RO' },
+              { name: 'Russian', value: 'RU' },
+              { name: 'Serbian', value: 'SR' },
+              { name: 'Slovak', value: 'SK' },
+              { name: 'Slovenian', value: 'SL' },
+              { name: 'Spanish', value: 'ES' },
+              { name: 'Swedish', value: 'SV' },
+              { name: 'Tamil', value: 'TA' },
+              { name: 'Telugu', value: 'TE' },
+              { name: 'Thai', value: 'TH' },
+              { name: 'Turkish', value: 'TR' },
+              { name: 'Ukrainian', value: 'UK' },
+              { name: 'Vietnamese', value: 'VI' },
+            ],
           },
           {
             displayName: 'Safe Search',
@@ -1024,7 +1122,6 @@ export class YouDotCom implements INodeType {
       boost: boostDomains,
     } = resolveDomainFilters(context, options, itemIndex)
 
-    // extraction takes precedence over the deprecated livecrawl/livecrawl_formats.
     const extraction = options.extraction as
       | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
       | undefined
@@ -1050,10 +1147,6 @@ export class YouDotCom implements INodeType {
         extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
       }
       body.extraction = extractionBody
-    } else if (options.livecrawl) {
-      // Deprecated; omitted when extraction is set.
-      body.livecrawl = options.livecrawl as string
-      if (options.livecrawl_formats) body.livecrawl_formats = [options.livecrawl_formats as string]
     }
 
     // crawl_timeout is invalid alongside extraction_mode == "highlights" (the

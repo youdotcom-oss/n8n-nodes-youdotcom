@@ -14,7 +14,6 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * - Invalid output_schema JSON throws
  * - Empty URLs throws
  * - crawl_timeout is stripped for highlights extraction
- * - extraction takes precedence over deprecated livecrawl
  */
 
 /** Mock node for error construction */
@@ -186,38 +185,6 @@ describe('Execute — Search request body', () => {
     expect(extraction.extraction_mode).toBe('full_page')
     expect((extraction.full_page as Record<string, unknown>).extraction_formats).toEqual(['markdown'])
     expect(body.crawl_timeout).toBe(15)
-  })
-
-  test('omits livecrawl when extraction is set', async () => {
-    const requests = await runExecute({
-      operation: 'search',
-      query: 'test',
-      searchOptions: {
-        livecrawl: 'web',
-        livecrawl_formats: 'markdown',
-        extraction: { extraction_mode: 'highlights' },
-      },
-      __credentials: {},
-    })
-    const body = requests[0]?.body as Record<string, unknown>
-    expect(body.livecrawl).toBeUndefined()
-    expect(body.livecrawl_formats).toBeUndefined()
-    expect(body.extraction).toBeDefined()
-  })
-
-  test('sends livecrawl when extraction is not set', async () => {
-    const requests = await runExecute({
-      operation: 'search',
-      query: 'test',
-      searchOptions: {
-        livecrawl: 'web',
-        livecrawl_formats: 'markdown',
-      },
-      __credentials: {},
-    })
-    const body = requests[0]?.body as Record<string, unknown>
-    expect(body.livecrawl).toBe('web')
-    expect(body.livecrawl_formats).toEqual(['markdown'])
   })
 
   test('includes optional search params when set', async () => {

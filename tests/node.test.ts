@@ -210,29 +210,7 @@ describe('YouDotCom Node', () => {
       expect(languageValues).toContain('EN')
       expect(languageValues).toContain('DE')
       expect(languageValues).toContain('FR')
-      expect(languageValues).toContain('JP')
-    })
-
-    test('has livecrawl option', () => {
-      const livecrawlOption = getSearchOption('Livecrawl')
-      expect(livecrawlOption).toBeDefined()
-      expect(livecrawlOption?.type).toBe('options')
-
-      const livecrawlValues = livecrawlOption?.options?.map((o) => o.value)
-      expect(livecrawlValues).toContain('web')
-      expect(livecrawlValues).toContain('news')
-      expect(livecrawlValues).toContain('all')
-    })
-
-    test('has livecrawl format option with conditional display', () => {
-      const formatOption = getSearchOption('Livecrawl Format')
-      expect(formatOption).toBeDefined()
-      expect(formatOption?.type).toBe('options')
-      expect(formatOption?.displayOptions?.show?.livecrawl).toEqual(['web', 'news', 'all'])
-
-      const formatValues = formatOption?.options?.map((o) => o.value)
-      expect(formatValues).toContain('html')
-      expect(formatValues).toContain('markdown')
+      expect(languageValues).toContain('JA')
     })
 
     test('has offset option with correct constraints', () => {
@@ -306,11 +284,6 @@ describe('YouDotCom Node', () => {
       expect(ct?.default).toBe(10)
     })
 
-    test('livecrawl option is marked deprecated', () => {
-      const livecrawl = getSearchOption('Livecrawl')
-      expect(livecrawl).toBeDefined()
-      expect(livecrawl?.description?.toLowerCase()).toContain('deprecated')
-    })
   })
 
   describe('Contents Parameters', () => {
