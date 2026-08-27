@@ -341,6 +341,17 @@ describe('Execute — Contents request body', () => {
     expect(body.crawl_timeout).toBe(30)
   })
 
+  test('includes crawl_timeout when explicitly set to 0', async () => {
+    const requests = await runExecute({
+      operation: 'contents',
+      urls: ['https://a.com'],
+      contentsOptions: { crawl_timeout: 0 },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.crawl_timeout).toBe(0)
+  })
+
   test('includes formats when set', async () => {
     const requests = await runExecute({
       operation: 'contents',

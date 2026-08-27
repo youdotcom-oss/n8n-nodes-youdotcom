@@ -461,6 +461,31 @@ describe('YouDotCom Node', () => {
     })
   })
 
+  describe('Answer Parameters', () => {
+    const getAnswerOptionsProperty = (): PropertyWithOptions | undefined => {
+      return node.description.properties.find((p) => p.name === 'answerOptions') as PropertyWithOptions | undefined
+    }
+
+    const getAnswerOption = (displayName: string): PropertyWithOptions | undefined => {
+      const optionsProperty = getAnswerOptionsProperty()
+      const options = optionsProperty?.options as unknown as PropertyWithOptions[] | undefined
+      return options?.find((o) => o.displayName === displayName)
+    }
+
+    test('has language option matching Search, including non-Latin-script languages', () => {
+      const languageOption = getAnswerOption('Language')
+      expect(languageOption).toBeDefined()
+      expect(languageOption?.type).toBe('options')
+
+      const languageValues = languageOption?.options?.map((o) => o.value)
+      expect(languageValues).toContain('JA')
+      expect(languageValues).toContain('ZH-HANS')
+      expect(languageValues).toContain('ZH-HANT')
+      expect(languageValues).toContain('PT-BR')
+      expect(languageValues).toContain('PT-PT')
+    })
+  })
+
   describe('Execute Method', () => {
     test('has execute method', () => {
       expect(typeof node.execute).toBe('function')
