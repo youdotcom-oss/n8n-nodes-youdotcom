@@ -137,6 +137,14 @@ describe('parseSseEvents', () => {
     expect(parseSseEvents(':heartbeat\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
   })
 
+  test('does not dispatch an id-only frame with no data (SSE spec: empty data buffer never dispatches)', () => {
+    expect(parseSseEvents('id: 7\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
+  })
+
+  test('does not dispatch an event-only frame with no data', () => {
+    expect(parseSseEvents('event: ping\n\ndata: {"a":1}\n\n')).toEqual([{ event: 'message', data: { a: 1 } }])
+  })
+
   test('handles CRLF line endings', () => {
     expect(parseSseEvents('event: ping\r\ndata: {"a":1}\r\n\r\n')).toEqual([{ event: 'ping', data: { a: 1 } }])
   })

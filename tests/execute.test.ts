@@ -187,6 +187,23 @@ describe('Execute — Search request body', () => {
     expect(body.crawl_timeout).toBe(15)
   })
 
+  test('omits full_page when extraction_formats is explicitly emptied', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {
+        extraction: {
+          extraction_mode: 'full_page',
+          full_page: { extraction_formats: [] },
+        },
+      },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    const extraction = body.extraction as Record<string, unknown>
+    expect(extraction.full_page).toBeUndefined()
+  })
+
   test('includes optional search params when set', async () => {
     const requests = await runExecute({
       operation: 'search',
@@ -208,6 +225,17 @@ describe('Execute — Search request body', () => {
     expect(body.language).toBe('EN')
     expect(body.offset).toBe(5)
     expect(body.safesearch).toBe('moderate')
+  })
+
+  test('includes count when explicitly set to 0', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: { count: 0 },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.count).toBe(0)
   })
 
   test('omits optional search params when not set', async () => {
@@ -497,6 +525,20 @@ describe('Execute — Research request body', () => {
     ).rejects.toThrow('Output Schema must be valid JSON')
   })
 
+  test('throws when output_schema is set with lite research effort', async () => {
+    await expect(
+      runExecute({
+        operation: 'research',
+        input: 'What is AI?',
+        researchEffort: 'lite',
+        background: false,
+        sourceControl: {},
+        outputSchema: '{"type":"object","properties":{"answer":{"type":"string"}}}',
+        __credentials: {},
+      }),
+    ).rejects.toThrow('Output Schema is not supported with Lite research effort')
+  })
+
   test('throws on source_control domain mutual exclusion', async () => {
     await expect(
       runExecute({
@@ -730,6 +772,32 @@ describe('Execute — Node documentationUrl', () => {
   test('node has documentationUrl pointing to n8n integration page', () => {
     const node = new YouDotCom()
     expect(node.description.documentationUrl).toBe('https://docs.you.com/docs/integrations/n8n')
+  })
+})
+
+describe('Execute — unknown operation', () => {
+  test('throws a clear error instead of silently producing no output', async () => {
+    await expect(
+      runExecute({
+        operation: 'not_a_real_operation',
+        __credentials: {},
+      }),
+    ).rejects.toThrow('Unknown operation')
+  })
+
+  test.each([
+    'constructor',
+    'toString',
+    'valueOf',
+    'hasOwnProperty',
+    '__proto__',
+  ])('throws for the inherited Object.prototype property %p instead of resolving to a builtin', async (operation) => {
+    await expect(
+      runExecute({
+        operation,
+        __credentials: {},
+      }),
+    ).rejects.toThrow('Unknown operation')
   })
 })
 

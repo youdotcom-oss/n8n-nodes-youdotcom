@@ -543,6 +543,7 @@ describe('YouDotComApi Credentials', () => {
       expect(credentials.test.request.url).toBe('/v1/search')
       expect(credentials.test.request.method).toBe('POST')
       expect((credentials.test.request as { body?: { query?: string } }).body?.query).toBe('test')
+      expect(credentials.test.request.json).toBe(true)
     })
   })
 })

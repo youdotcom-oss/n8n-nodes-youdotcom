@@ -1,6 +1,7 @@
 import type {
   IDataObject,
   IExecuteFunctions,
+  IHttpRequestOptions,
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
@@ -9,11 +10,44 @@ import type {
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
 import { buildClientInfoHeader } from './Attribution.ts'
 
+/** Signature shared by every `#execute*` operation handler. */
+type OperationHandler = (
+  context: IExecuteFunctions,
+  itemIndex: number,
+  clientInfoHeader: string,
+) => Promise<IDataObject | IDataObject[]>
+
 /** Package version for User-Agent header. Updated automatically by publish workflow. */
 const PACKAGE_VERSION = '0.6.0'
 
 /** User-Agent string for API requests */
 const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
+
+/** Base URL for the Search and Contents endpoints. Also used by the credential Test request. */
+export const SEARCH_API_BASE = 'https://ydc-index.io'
+
+/** Base URL for the Research, Answer, and Finance Research endpoints. */
+const RESEARCH_API_BASE = 'https://api.you.com'
+
+/** Headers sent with every outbound API request. */
+function attributionHeaders(clientInfoHeader: string): Record<string, string> {
+  return {
+    'User-Agent': USER_AGENT,
+    'X-Client-Info': clientInfoHeader,
+  }
+}
+
+/** Issue an authenticated You.com API request with the attribution headers attached. */
+function callYouDotComApi(
+  context: IExecuteFunctions,
+  clientInfoHeader: string,
+  options: Omit<IHttpRequestOptions, 'headers'>,
+): Promise<unknown> {
+  return context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    ...options,
+    headers: attributionHeaders(clientInfoHeader),
+  })
+}
 
 /** Country dropdown options shared by Search, Research Source Control, and Answer. */
 const COUNTRY_OPTIONS = [
@@ -200,7 +234,9 @@ export function parseSseEvents(raw: string): SseEvent[] {
       else if (field === 'data') dataLines.push(value)
     }
 
-    if (dataLines.length === 0 && id === undefined && event === 'message') continue
+    // Per the SSE spec, a block with no data line never dispatches, regardless
+    // of id/event — e.g. an id-only frame nudging the reconnection cursor.
+    if (dataLines.length === 0) continue
 
     const rawData = dataLines.join('\n')
     let data: IDataObject[string] = rawData
@@ -898,6 +934,23 @@ export class YouDotCom implements INodeType {
     ],
   }
 
+  /**
+   * Maps each `operation` dropdown value to its handler. Shared shape lets
+   * execute() dispatch through one lookup instead of a hand-copied branch per
+   * operation. A Map (not a plain object) so an attacker-influenced operation
+   * string like "constructor" or "toString" can't resolve to an inherited
+   * Object.prototype value instead of `undefined`.
+   */
+  static #operationHandlers: ReadonlyMap<string, OperationHandler> = new Map<string, OperationHandler>([
+    ['search', YouDotCom.#executeSearch],
+    ['contents', YouDotCom.#executeContents],
+    ['research', YouDotCom.#executeResearch],
+    ['answer', YouDotCom.#executeAnswer],
+    ['finance_research', YouDotCom.#executeFinanceResearch],
+    ['get_research_task', YouDotCom.#executeGetResearchTask],
+    ['stream_research_task', YouDotCom.#executeStreamResearchTask],
+  ])
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData()
     const returnData: INodeExecutionData[] = []
@@ -909,51 +962,16 @@ export class YouDotCom implements INodeType {
 
     for (let i = 0; i < items.length; i++) {
       try {
-        const operation = this.getNodeParameter('operation', i)
-
-        if (operation === 'search') {
-          const response = await YouDotCom.#executeSearch(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'contents') {
-          const response = await YouDotCom.#executeContents(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'research') {
-          const response = await YouDotCom.#executeResearch(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'answer') {
-          const response = await YouDotCom.#executeAnswer(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'finance_research') {
-          const response = await YouDotCom.#executeFinanceResearch(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'get_research_task') {
-          const response = await YouDotCom.#executeGetResearchTask(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'stream_research_task') {
-          const response = await YouDotCom.#executeStreamResearchTask(this, i, clientInfoHeader)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
+        const operation = this.getNodeParameter('operation', i) as string
+        const handler = YouDotCom.#operationHandlers.get(operation)
+        if (!handler) {
+          throw new NodeOperationError(this.getNode(), `Unknown operation: ${operation}`, { itemIndex: i })
         }
+        const response = await handler(this, i, clientInfoHeader)
+        const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+          itemData: { item: i },
+        })
+        returnData.push(...executionData)
       } catch (error) {
         if (this.continueOnFail()) {
           returnData.push({
@@ -1002,7 +1020,7 @@ export class YouDotCom implements INodeType {
 
     const body: Record<string, unknown> = { query }
 
-    if (options.count) body.count = options.count as number
+    if (options.count != null) body.count = options.count as number
     if (options.country) body.country = options.country as string
     if (options.freshness) body.freshness = options.freshness as string
     if (options.language) body.language = options.language as string
@@ -1015,7 +1033,7 @@ export class YouDotCom implements INodeType {
     if (hasExtraction) {
       const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
       const fullPage = extraction?.full_page
-      if (extractionMode === 'full_page' && fullPage?.extraction_formats) {
+      if (extractionMode === 'full_page' && fullPage?.extraction_formats?.length) {
         extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
       }
       body.extraction = extractionBody
@@ -1028,13 +1046,9 @@ export class YouDotCom implements INodeType {
       body.crawl_timeout = options.crawl_timeout as number
     }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://ydc-index.io/v1/search',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${SEARCH_API_BASE}/v1/search`,
       body,
       json: true,
     })
@@ -1078,13 +1092,9 @@ export class YouDotCom implements INodeType {
       body.max_age = options.max_age
     }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://ydc-index.io/v1/contents',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${SEARCH_API_BASE}/v1/contents`,
       body,
       json: true,
     })
@@ -1137,6 +1147,13 @@ export class YouDotCom implements INodeType {
     // output_schema (JSON string → object)
     const outputSchema = context.getNodeParameter('outputSchema', itemIndex, '') as string
     if (outputSchema.trim()) {
+      if (researchEffort === 'lite') {
+        throw new NodeOperationError(
+          context.getNode(),
+          'Output Schema is not supported with Lite research effort. Choose a different effort level or clear Output Schema.',
+          { itemIndex },
+        )
+      }
       try {
         body.output_schema = JSON.parse(outputSchema)
       } catch {
@@ -1144,13 +1161,9 @@ export class YouDotCom implements INodeType {
       }
     }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://api.you.com/v1/research',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${RESEARCH_API_BASE}/v1/research`,
       body,
       json: true,
     })
@@ -1184,13 +1197,9 @@ export class YouDotCom implements INodeType {
     if (options.language) body.language = options.language
     if (options.safesearch) body.safesearch = options.safesearch
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://api.you.com/v1/answer',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${RESEARCH_API_BASE}/v1/answer`,
       body,
       json: true,
     })
@@ -1211,13 +1220,9 @@ export class YouDotCom implements INodeType {
 
     const body: Record<string, unknown> = { input, research_effort: researchEffort }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://api.you.com/v1/finance_research',
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${RESEARCH_API_BASE}/v1/finance_research`,
       body,
       json: true,
     })
@@ -1235,13 +1240,9 @@ export class YouDotCom implements INodeType {
   ): Promise<IDataObject> {
     const taskId = context.getNodeParameter('taskId', itemIndex) as string
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'GET',
-      url: `https://api.you.com/v1/research/${encodeURIComponent(taskId)}`,
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}`,
       json: true,
     })
 
@@ -1261,13 +1262,9 @@ export class YouDotCom implements INodeType {
     const streamResearchEffort = context.getNodeParameter('streamResearchEffort', itemIndex, 'standard') as string
     const timeout = streamResearchEffort === 'frontier' ? STREAM_TIMEOUT_FRONTIER_MS : STREAM_TIMEOUT_STANDARD_MS
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'GET',
-      url: `https://api.you.com/v1/research/${encodeURIComponent(taskId)}/stream`,
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Client-Info': clientInfoHeader,
-      },
+      url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}/stream`,
       qs: { from_id: fromId },
       json: false,
       encoding: 'text',

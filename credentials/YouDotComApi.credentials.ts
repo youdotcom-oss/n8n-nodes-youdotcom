@@ -1,4 +1,5 @@
 import type { IAuthenticateGeneric, ICredentialTestRequest, ICredentialType, INodeProperties } from 'n8n-workflow'
+import { SEARCH_API_BASE } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
  * You.com API credentials for n8n.
@@ -36,13 +37,14 @@ export class YouDotComApi implements ICredentialType {
 
   test: ICredentialTestRequest = {
     request: {
-      baseURL: 'https://ydc-index.io',
+      baseURL: SEARCH_API_BASE,
       url: '/v1/search',
       method: 'POST',
       body: {
         query: 'test',
         count: 1,
       },
+      json: true,
     },
   }
 }
