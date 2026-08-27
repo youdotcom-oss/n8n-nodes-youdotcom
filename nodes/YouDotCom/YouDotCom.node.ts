@@ -322,7 +322,7 @@ export class YouDotCom implements INodeType {
             type: 'collection',
             placeholder: 'Add extraction',
             default: {},
-            description: 'Controls how page content is attached to each result.',
+            description: 'Controls how page content is attached to each result',
             options: [
               {
                 displayName: 'Extraction Mode',
@@ -915,7 +915,6 @@ export class YouDotCom implements INodeType {
             default: '',
             description: 'BCP 47 language tag for the web results',
             options: [
-              { name: 'Default', value: '' },
               { name: 'Arabic', value: 'AR' },
               { name: 'Basque', value: 'EU' },
               { name: 'Bengali', value: 'BN' },
@@ -924,6 +923,7 @@ export class YouDotCom implements INodeType {
               { name: 'Croatian', value: 'HR' },
               { name: 'Czech', value: 'CS' },
               { name: 'Danish', value: 'DA' },
+              { name: 'Default', value: '' },
               { name: 'Dutch', value: 'NL' },
               { name: 'English', value: 'EN' },
               { name: 'English (UK)', value: 'EN-GB' },
