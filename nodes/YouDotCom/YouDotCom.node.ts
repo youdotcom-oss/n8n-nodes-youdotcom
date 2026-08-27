@@ -912,7 +912,7 @@ export class YouDotCom implements INodeType {
             displayName: 'Language',
             name: 'language',
             type: 'options',
-            default: '',
+            default: 'EN',
             description: 'BCP 47 language tag for the web results',
             options: [
               { name: 'Arabic', value: 'AR' },
@@ -923,7 +923,6 @@ export class YouDotCom implements INodeType {
               { name: 'Croatian', value: 'HR' },
               { name: 'Czech', value: 'CS' },
               { name: 'Danish', value: 'DA' },
-              { name: 'Default', value: '' },
               { name: 'Dutch', value: 'NL' },
               { name: 'English', value: 'EN' },
               { name: 'English (UK)', value: 'EN-GB' },
