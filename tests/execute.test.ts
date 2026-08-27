@@ -206,6 +206,23 @@ describe('Execute — Search request body', () => {
     expect(extraction.full_page).toBeUndefined()
   })
 
+  test('infers full_page extraction_mode when full_page is set without an explicit mode (e.g. AI-agent tool call)', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {
+        extraction: {
+          full_page: { extraction_formats: ['html'] },
+        },
+      },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    const extraction = body.extraction as Record<string, unknown>
+    expect(extraction.extraction_mode).toBe('full_page')
+    expect((extraction.full_page as Record<string, unknown>).extraction_formats).toEqual(['html'])
+  })
+
   test('includes optional search params when set', async () => {
     const requests = await runExecute({
       operation: 'search',
@@ -737,6 +754,38 @@ describe('Execute — Stream Research Task request', () => {
       { json: { event: 'task.progress', data: { step: 1 } } },
       { json: { event: 'message', data: { step: 2 } } },
     ])
+  })
+
+  test('throws a clear error pointing to Get Research Task when the connection times out', async () => {
+    const { context } = createMockContext({
+      operation: 'stream_research_task',
+      taskId: 'abc-123',
+      __credentials: {},
+    })
+    ;(
+      context.helpers as unknown as { httpRequestWithAuthentication: () => Promise<unknown> }
+    ).httpRequestWithAuthentication = mock(async () => {
+      throw new Error('timeout of 600000ms exceeded')
+    })
+    const node = new YouDotCom()
+    await expect(node.execute.call(context)).rejects.toThrow(
+      'Stream Research Task timed out after 600s waiting for the task to finish. The task may still be running — use Get Research Task',
+    )
+  })
+
+  test('does not rewrite unrelated errors as a timeout', async () => {
+    const { context } = createMockContext({
+      operation: 'stream_research_task',
+      taskId: 'abc-123',
+      __credentials: {},
+    })
+    ;(
+      context.helpers as unknown as { httpRequestWithAuthentication: () => Promise<unknown> }
+    ).httpRequestWithAuthentication = mock(async () => {
+      throw new Error('Request failed with status code 404')
+    })
+    const node = new YouDotCom()
+    await expect(node.execute.call(context)).rejects.toThrow('Request failed with status code 404')
   })
 })
 

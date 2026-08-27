@@ -1007,7 +1007,12 @@ export class YouDotCom implements INodeType {
     const extraction = options.extraction as
       | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
       | undefined
-    const extractionMode = extraction?.extraction_mode
+    // The UI can't set full_page without extraction_mode (the sub-field is
+    // hidden until Extraction Mode = Full Page), but a caller driving this as
+    // an AI-agent tool (usableAsTool) isn't bound by that UI gating and could
+    // supply full_page alone — infer full_page mode rather than silently
+    // dropping the whole extraction request.
+    const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
     const hasExtraction = extractionMode != null
 
     const body: Record<string, unknown> = { query }
@@ -1231,15 +1236,34 @@ export class YouDotCom implements INodeType {
     const streamResearchEffort = context.getNodeParameter('streamResearchEffort', itemIndex, 'standard') as string
     const timeout = streamResearchEffort === 'frontier' ? STREAM_TIMEOUT_FRONTIER_MS : STREAM_TIMEOUT_STANDARD_MS
 
-    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
-      method: 'GET',
-      url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}/stream`,
-      qs: { from_id: fromId },
-      json: false,
-      encoding: 'text',
-      timeout,
-    })
+    try {
+      const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
+        method: 'GET',
+        url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}/stream`,
+        qs: { from_id: fromId },
+        json: false,
+        encoding: 'text',
+        timeout,
+      })
 
-    return parseSseEvents(String(rawResponse))
+      return parseSseEvents(String(rawResponse))
+    } catch (error) {
+      // The HTTP client buffers the whole response and only returns it once
+      // the connection closes — a client-side timeout discards everything
+      // received so far with no way to recover a from_id to resume from.
+      // Per You.com's docs, the task itself keeps running independently of
+      // this stream connection either way, so point the caller at the
+      // operation that reliably retrieves it regardless of the stream outcome.
+      if (/time(d)? ?out/i.test((error as Error).message ?? '')) {
+        throw new NodeOperationError(
+          context.getNode(),
+          `Stream Research Task timed out after ${Math.round(timeout / 1000)}s waiting for the task to finish. ` +
+            'The task may still be running — use Get Research Task with the same Task ID to check its status ' +
+            'and retrieve the result once it completes.',
+          { itemIndex },
+        )
+      }
+      throw error
+    }
   }
 }

@@ -113,7 +113,7 @@ Poll the status of a background research task created with the Research operatio
 
 ### Stream Research Task
 
-Reads the Server-Sent Events for a background research task and returns each event as a separate output item (`id`, `event`, `data`, with `data` parsed as JSON when possible). Because an n8n node returns its output all at once rather than incrementally, this waits for the connection to close — which happens automatically when the task reaches a terminal state (e.g. `response.done`) — before returning the full sequence of events; it does not deliver events to the workflow as they happen.
+Reads the Server-Sent Events for a background research task and returns each event as a separate output item (`id`, `event`, `data`, with `data` parsed as JSON when possible). Because an n8n node returns its output all at once rather than incrementally, this waits for the connection to close — which happens automatically when the task reaches a terminal state (e.g. `response.done`) — before returning the full sequence of events; it does not deliver events to the workflow as they happen. If the connection times out before the task finishes, no partial events are returned — the task keeps running independently, so use Get Research Task with the same Task ID to retrieve the result once it completes.
 
 | Parameter | Description |
 |-----------|-------------|
