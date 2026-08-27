@@ -46,7 +46,7 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
   let backgroundTaskId = ''
 
   beforeAll(async () => {
-    // Create a background research task (lite effort) for the get/stream tests.
+    // Create a background research task (lite effort) for the get-task test.
     const res = await postJson(`${API_BASE}/research`, {
       input: 'What is the capital of France?',
       research_effort: 'lite',
@@ -268,27 +268,5 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     // The response shape varies by task state (pending vs completed).
     // A completed task has output; a pending task has status.
     expect(data.status ?? data.output).toBeDefined()
-  })
-
-  // ── Stream Research Task ──────────────────────────────────────────────
-
-  test('stream research task returns SSE response', async () => {
-    const res = await fetch(`${API_BASE}/research/${backgroundTaskId}/stream?from_id=0`, {
-      headers: HEADERS,
-      signal: AbortSignal.timeout(60_000),
-    })
-    expect(res.status).toBe(200)
-    expect(res.body).toBeDefined()
-    if (res.body) {
-      const reader = res.body.getReader()
-      const { value, done } = await reader.read()
-      if (!done) {
-        expect(value).toBeDefined()
-        expect(value?.length).toBeGreaterThan(0)
-      }
-      // If done is true, the task already completed and the stream has no
-      // remaining chunks — that is a valid state, not a failure.
-      await reader.cancel()
-    }
   })
 })

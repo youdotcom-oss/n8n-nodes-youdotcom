@@ -63,7 +63,7 @@ Perfect for competitive analysis, market research, technical due diligence, or a
 |-----------|-------------|
 | Input | The research question (required) |
 | Research Effort | Controls depth and speed (see below, default: standard) |
-| Background | Whether to queue the task and return a task handle immediately instead of waiting inline. Use Get/Stream Research Task to retrieve the result |
+| Background | Whether to queue the task and return a task handle immediately instead of waiting inline. Use Get Research Task to retrieve the result |
 | Source Control | Beta. Controls which web sources the research agent searches (domain filters, freshness, country) |
 | Output Schema | Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, exhaustive, and frontier effort. Not supported with lite |
 
@@ -105,21 +105,11 @@ Get finance-grade research answers with citations from financial data sources. T
 
 ### Get Research Task
 
-Poll the status of a background research task created with the Research operation's Background mode. When the task is completed, the result is included in the response.
+Poll the status of a background research task created with the Research operation's Background mode. When the task is completed, the result is included in the response. For a long-running task, put this behind a `Wait` node and loop until the status is no longer pending — this is the recommended pattern for retrieving background results, since it degrades gracefully (a poll that comes back "still running" just costs another loop iteration, nothing is ever lost to a timeout).
 
 | Parameter | Description |
 |-----------|-------------|
 | Task ID | The UUID of the background research task (required) |
-
-### Stream Research Task
-
-Reads the Server-Sent Events for a background research task and returns each event as a separate output item (`id`, `event`, `data`, with `data` parsed as JSON when possible). Because an n8n node returns its output all at once rather than incrementally, this waits for the connection to close — which happens automatically when the task reaches a terminal state (e.g. `response.done`) — before returning the full sequence of events; it does not deliver events to the workflow as they happen. If the connection times out before the task finishes, no partial events are returned — the task keeps running independently, so use Get Research Task with the same Task ID to retrieve the result once it completes.
-
-| Parameter | Description |
-|-----------|-------------|
-| Task ID | The UUID of the background research task (required) |
-| From ID | Resume from a sequence number for reconnection (default: 0) |
-| Expected Research Effort | The research effort the task was created with. Only used to pick a client-side timeout for this request (10 minutes, or 4 hours for Frontier) — not sent to the API. |
 
 ## Credentials
 
@@ -140,7 +130,7 @@ The `sdk` channel token matches the You.com Python SDK. The `client=n8n-nodes-yo
 ## Usage
 
 1. Add the "You.com" node to your workflow
-2. Select an operation (Search, Get Contents, Research, Answer, Finance Research, Get Research Task, or Stream Research Task)
+2. Select an operation (Search, Get Contents, Research, Answer, Finance Research, or Get Research Task)
 3. Configure the parameters for your chosen operation
 4. Run the workflow
 

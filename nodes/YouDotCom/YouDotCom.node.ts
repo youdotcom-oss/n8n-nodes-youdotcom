@@ -209,59 +209,6 @@ function applyDomainFilters(
   if (boost.length > 0) target.boost_domains = boost
 }
 
-// Default client-side timeouts for Stream Research Task, mirroring the You.com
-// Python SDK's `_resolve_default_timeout`: frontier tasks can run for hours,
-// every other effort tier finishes well within 10 minutes.
-const STREAM_TIMEOUT_STANDARD_MS = 600_000
-const STREAM_TIMEOUT_FRONTIER_MS = 14_400_000
-
-export interface SseEvent extends IDataObject {
-  id?: string
-  event: string
-  data: IDataObject[string]
-}
-
-/** Parse a raw SSE response body into structured events (per the WHATWG SSE spec: fields are `field: value` lines, events are separated by a blank line, `data:` lines are joined with `\n`, and lines starting with `:` are comments). */
-export function parseSseEvents(raw: string): SseEvent[] {
-  const events: SseEvent[] = []
-  // Per the SSE spec, the "last event ID" buffer persists across the whole
-  // stream — a block without an `id:` line inherits the most recent one,
-  // it does not reset to undefined. (`event:`, by contrast, does reset each
-  // block; only `id` carries forward.)
-  let id: string | undefined
-
-  for (const block of raw.split(/\r?\n\r?\n/)) {
-    let event = 'message'
-    const dataLines: string[] = []
-
-    for (const line of block.split(/\r?\n/)) {
-      if (!line || line.startsWith(':')) continue
-      const colonIndex = line.indexOf(':')
-      const field = colonIndex === -1 ? line : line.slice(0, colonIndex)
-      const value = colonIndex === -1 ? '' : line.slice(colonIndex + 1).replace(/^ /, '')
-      if (field === 'id') id = value
-      else if (field === 'event') event = value
-      else if (field === 'data') dataLines.push(value)
-    }
-
-    // Per the SSE spec, a block with no data line never dispatches, regardless
-    // of id/event — e.g. an id-only frame nudging the reconnection cursor.
-    if (dataLines.length === 0) continue
-
-    const rawData = dataLines.join('\n')
-    let data: IDataObject[string] = rawData
-    try {
-      data = JSON.parse(rawData)
-    } catch {
-      // Not JSON — keep the raw text.
-    }
-
-    events.push(id === undefined ? { event, data } : { id, event, data })
-  }
-
-  return events
-}
-
 /**
  * You.com node for n8n - Search, Contents, and Research operations.
  *
@@ -336,12 +283,6 @@ export class YouDotCom implements INodeType {
             description: 'Search the web and news using You.com',
             action: 'Search the web and news',
           },
-          {
-            name: 'Stream Research Task',
-            value: 'stream_research_task',
-            description: 'Stream real-time updates for a background research task',
-            action: 'Stream a research task',
-          },
         ],
         default: 'search',
       },
@@ -383,7 +324,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Boost ranking for these domains without excluding others (up to 500). Cannot combine with Include Domains. Can combine with Exclude Domains.',
           },
@@ -425,7 +366,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Filter out results from these domains (up to 500). Cannot combine with Include Domains. Can combine with Boost Domains.',
           },
@@ -498,7 +439,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Restrict results to these domains (strict allowlist, up to 500). Cannot combine with Exclude Domains or Boost Domains.',
           },
@@ -549,7 +490,7 @@ export class YouDotCom implements INodeType {
             operation: ['contents'],
           },
         },
-        default: '',
+        default: [],
         placeholder: 'https://example.com',
         description:
           'One or more URLs to extract content from. Use the + button to add multiple URLs, or enter a comma-separated list.',
@@ -628,12 +569,29 @@ export class YouDotCom implements INodeType {
         },
         displayOptions: {
           show: {
-            operation: ['research', 'finance_research'],
+            operation: ['research'],
           },
         },
         default: '',
         placeholder: 'e.g., Which global cities improved air quality the most over the past 10 years?',
         description: 'The research question or complex query requiring in-depth investigation (max 40,000 characters)',
+      },
+      {
+        displayName: 'Input',
+        name: 'input',
+        type: 'string',
+        required: true,
+        typeOptions: {
+          rows: 4,
+        },
+        displayOptions: {
+          show: {
+            operation: ['finance_research'],
+          },
+        },
+        default: '',
+        placeholder: "e.g., How has Tesla's gross margin trended over the last 8 quarters?",
+        description: 'The financial research question requiring in-depth investigation (max 40,000 characters)',
       },
       {
         displayName: 'Research Effort',
@@ -685,7 +643,7 @@ export class YouDotCom implements INodeType {
         },
         default: false,
         description:
-          'Whether to queue a research task and return a task handle immediately instead of waiting for the result inline. Use Get Research Task or Stream Research Task to retrieve the result.',
+          'Whether to queue a research task and return a task handle immediately instead of waiting for the result inline. Use Get Research Task to retrieve the result.',
       },
       {
         displayName: 'Source Control',
@@ -707,7 +665,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
           },
@@ -726,7 +684,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Never return results from these domains (max 500). Also blocks browsing. Cannot combine with Include Domains.',
           },
@@ -745,7 +703,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
           },
@@ -827,7 +785,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
           },
@@ -846,7 +804,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description: 'Never return results from these domains (max 500). Cannot combine with Include Domains.',
           },
           {
@@ -864,7 +822,7 @@ export class YouDotCom implements INodeType {
             typeOptions: {
               multipleValues: true,
             },
-            default: '',
+            default: [],
             description:
               'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
           },
@@ -893,41 +851,12 @@ export class YouDotCom implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            operation: ['get_research_task', 'stream_research_task'],
+            operation: ['get_research_task'],
           },
         },
         default: '',
         placeholder: 'e.g., abc12345-...',
-        description: 'The UUID of the background research task to poll or stream',
-      },
-      {
-        displayName: 'From ID',
-        name: 'fromId',
-        type: 'number',
-        displayOptions: {
-          show: {
-            operation: ['stream_research_task'],
-          },
-        },
-        default: 0,
-        description: 'Resume from a sequence number for reconnection (default 0)',
-      },
-      {
-        displayName: 'Expected Research Effort',
-        name: 'streamResearchEffort',
-        type: 'options',
-        displayOptions: {
-          show: {
-            operation: ['stream_research_task'],
-          },
-        },
-        default: 'standard',
-        description:
-          'The research effort the task was created with. Only used to pick a client-side timeout for this request — Frontier tasks can run for hours, everything else finishes well within 10 minutes. It is not sent to the API and does not need to match exactly.',
-        options: [
-          { name: 'Frontier (up to 4 Hours)', value: 'frontier' },
-          { name: 'Everything Else (up to 10 Minutes)', value: 'standard' },
-        ],
+        description: 'The UUID of the background research task to poll',
       },
     ],
   }
@@ -946,7 +875,6 @@ export class YouDotCom implements INodeType {
     ['answer', YouDotCom.#executeAnswer],
     ['finance_research', YouDotCom.#executeFinanceResearch],
     ['get_research_task', YouDotCom.#executeGetResearchTask],
-    ['stream_research_task', YouDotCom.#executeStreamResearchTask],
   ])
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -1221,49 +1149,5 @@ export class YouDotCom implements INodeType {
     })
 
     return rawResponse as IDataObject
-  }
-
-  /**
-   * Execute Stream Research Task operation
-   */
-  static async #executeStreamResearchTask(
-    context: IExecuteFunctions,
-    itemIndex: number,
-    clientInfoHeader: string,
-  ): Promise<IDataObject[]> {
-    const taskId = context.getNodeParameter('taskId', itemIndex) as string
-    const fromId = context.getNodeParameter('fromId', itemIndex, 0) as number
-    const streamResearchEffort = context.getNodeParameter('streamResearchEffort', itemIndex, 'standard') as string
-    const timeout = streamResearchEffort === 'frontier' ? STREAM_TIMEOUT_FRONTIER_MS : STREAM_TIMEOUT_STANDARD_MS
-
-    try {
-      const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
-        method: 'GET',
-        url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}/stream`,
-        qs: { from_id: fromId },
-        json: false,
-        encoding: 'text',
-        timeout,
-      })
-
-      return parseSseEvents(String(rawResponse))
-    } catch (error) {
-      // The HTTP client buffers the whole response and only returns it once
-      // the connection closes — a client-side timeout discards everything
-      // received so far with no way to recover a from_id to resume from.
-      // Per You.com's docs, the task itself keeps running independently of
-      // this stream connection either way, so point the caller at the
-      // operation that reliably retrieves it regardless of the stream outcome.
-      if (/time(d)? ?out/i.test((error as Error).message ?? '')) {
-        throw new NodeOperationError(
-          context.getNode(),
-          `Stream Research Task timed out after ${Math.round(timeout / 1000)}s waiting for the task to finish. ` +
-            'The task may still be running — use Get Research Task with the same Task ID to check its status ' +
-            'and retrieve the result once it completes.',
-          { itemIndex },
-        )
-      }
-      throw error
-    }
   }
 }

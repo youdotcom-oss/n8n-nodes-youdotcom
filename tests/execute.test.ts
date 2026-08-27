@@ -74,10 +74,6 @@ function createMockContext(params: Record<string, unknown>): {
           headers: opts.headers as Record<string, string>,
           timeout: opts.timeout,
         })
-        // Stream operation uses json: false, encoding: 'text' — returns a string.
-        if (opts.json === false || opts.encoding === 'text') {
-          return (params.__mockStreamResponse as string) ?? 'data: mock\nevent: message\n\n'
-        }
         // Contents operation returns an array; all others return a single object.
         const url = opts.url as string
         if (url.includes('/contents')) {
@@ -697,95 +693,6 @@ describe('Execute — Get Research Task request', () => {
       __credentials: {},
     })
     expect(requests[0]?.url).toBe('https://api.you.com/v1/research/task%20with%20spaces')
-  })
-})
-
-describe('Execute — Stream Research Task request', () => {
-  test('sends GET with task_id in URL and from_id as query param', async () => {
-    const requests = await runExecute({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      fromId: 5,
-      __credentials: {},
-    })
-    expect(requests[0]?.method).toBe('GET')
-    expect(requests[0]?.url).toBe('https://api.you.com/v1/research/abc-123/stream')
-    expect(requests[0]?.qs).toEqual({ from_id: 5 })
-  })
-
-  test('defaults from_id to 0', async () => {
-    const requests = await runExecute({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      __credentials: {},
-    })
-    expect(requests[0]?.qs).toEqual({ from_id: 0 })
-  })
-
-  test('defaults to the 10-minute timeout', async () => {
-    const requests = await runExecute({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      __credentials: {},
-    })
-    expect(requests[0]?.timeout).toBe(600_000)
-  })
-
-  test('uses the 4-hour timeout when Expected Research Effort is frontier', async () => {
-    const requests = await runExecute({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      streamResearchEffort: 'frontier',
-      __credentials: {},
-    })
-    expect(requests[0]?.timeout).toBe(14_400_000)
-  })
-
-  test('returns one output item per parsed SSE event', async () => {
-    const { context } = createMockContext({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      __mockStreamResponse: 'event: task.progress\ndata: {"step":1}\n\ndata: {"step":2}\n\n',
-      __credentials: {},
-    })
-    const node = new YouDotCom()
-    const [output] = await node.execute.call(context)
-    expect(output).toEqual([
-      { json: { event: 'task.progress', data: { step: 1 } } },
-      { json: { event: 'message', data: { step: 2 } } },
-    ])
-  })
-
-  test('throws a clear error pointing to Get Research Task when the connection times out', async () => {
-    const { context } = createMockContext({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      __credentials: {},
-    })
-    ;(
-      context.helpers as unknown as { httpRequestWithAuthentication: () => Promise<unknown> }
-    ).httpRequestWithAuthentication = mock(async () => {
-      throw new Error('timeout of 600000ms exceeded')
-    })
-    const node = new YouDotCom()
-    await expect(node.execute.call(context)).rejects.toThrow(
-      'Stream Research Task timed out after 600s waiting for the task to finish. The task may still be running — use Get Research Task',
-    )
-  })
-
-  test('does not rewrite unrelated errors as a timeout', async () => {
-    const { context } = createMockContext({
-      operation: 'stream_research_task',
-      taskId: 'abc-123',
-      __credentials: {},
-    })
-    ;(
-      context.helpers as unknown as { httpRequestWithAuthentication: () => Promise<unknown> }
-    ).httpRequestWithAuthentication = mock(async () => {
-      throw new Error('Request failed with status code 404')
-    })
-    const node = new YouDotCom()
-    await expect(node.execute.call(context)).rejects.toThrow('Request failed with status code 404')
   })
 })
 

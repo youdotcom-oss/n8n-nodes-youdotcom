@@ -8,12 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Research parity and four new operations, matching You.com Python SDK 3.1.2.**
+- **Research parity and three new operations, matching You.com Python SDK 3.1.2.**
   - **Research enhancements:** `background` (queue a task and return a handle), `source_control` collection (domain filters, freshness, country), `output_schema` (JSON Schema for structured output), and `frontier` research effort level (requires background mode). Frontier without background is blocked at execution time with a clear error.
   - **Answer** operation (`POST /v1/answer`): synthesized answer with citations from web search results. Supports freshness, country, language, safesearch, and domain filters.
   - **Finance Research** operation (`POST /v1/finance_research`): finance-grade research answers with citations from financial data sources. Supports deep and exhaustive effort levels.
-  - **Get Research Task** operation (`GET /v1/research/{task_id}`): poll the status of a background research task.
-  - **Stream Research Task** operation (`GET /v1/research/{task_id}/stream`): reads the Server-Sent Events for a background research task and returns each event as a separate output item (parsed `id`/`event`/`data`), with a `from_id` parameter for reconnection. A client-side timeout (10 minutes, or 4 hours when the new `Expected Research Effort` parameter is set to Frontier) guards against a stalled connection hanging the node indefinitely; if it fires, the node raises a clear error pointing at Get Research Task, since the background task keeps running independently of this stream and remains retrievable that way regardless of how the stream ends.
+  - **Get Research Task** operation (`GET /v1/research/{task_id}`): poll the status of a background research task. Combine with a `Wait` node in a loop to retrieve a Background research result — the recommended pattern for long-running tasks, since a poll that comes back "still running" just costs another loop iteration.
 - **Contents parity with You.com Python SDK 3.1.2.** The Get Contents operation now supports the following:
   - **Multi-URL input.** The URLs field now supports multiple values via the + button. Comma-separated input is still accepted as a fallback for backward compatibility.
   - **Max Age.** New `max_age` parameter (0 or greater) controlling the maximum allowed age of cached content. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).

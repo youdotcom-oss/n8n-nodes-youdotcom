@@ -110,9 +110,9 @@ describe('YouDotCom Node', () => {
       expect((researchOption as INodePropertyOptions & { action?: string })?.action).toBe('Research a complex question')
     })
 
-    test('has exactly seven operations', () => {
+    test('has exactly six operations', () => {
       const operationProperty = getOperationProperty()
-      expect(operationProperty?.options?.length).toBe(7)
+      expect(operationProperty?.options?.length).toBe(6)
     })
 
     test('has answer operation', () => {
@@ -134,13 +134,6 @@ describe('YouDotCom Node', () => {
       const getTaskOption = operationProperty?.options?.find((o) => o.value === 'get_research_task')
       expect(getTaskOption).toBeDefined()
       expect(getTaskOption?.name).toBe('Get Research Task')
-    })
-
-    test('has stream research task operation', () => {
-      const operationProperty = getOperationProperty()
-      const streamTaskOption = operationProperty?.options?.find((o) => o.value === 'stream_research_task')
-      expect(streamTaskOption).toBeDefined()
-      expect(streamTaskOption?.name).toBe('Stream Research Task')
     })
   })
 
@@ -355,16 +348,27 @@ describe('YouDotCom Node', () => {
   })
 
   describe('Research Parameters', () => {
-    test('has input parameter as required', () => {
-      const inputProperty = node.description.properties.find((p) => p.name === 'input')
-      expect(inputProperty).toBeDefined()
-      expect(inputProperty?.required).toBe(true)
-      expect(inputProperty?.type).toBe('string')
-    })
+    test('has input parameter as required for both research and finance_research, with distinct examples', () => {
+      const researchInput = node.description.properties.find(
+        (p) => p.name === 'input' && p.displayOptions?.show?.operation?.includes('research'),
+      )
+      const financeInput = node.description.properties.find(
+        (p) => p.name === 'input' && p.displayOptions?.show?.operation?.includes('finance_research'),
+      )
+      expect(researchInput).toBeDefined()
+      expect(researchInput?.required).toBe(true)
+      expect(researchInput?.type).toBe('string')
+      expect(researchInput?.displayOptions?.show?.operation).toEqual(['research'])
 
-    test('input parameter is shown for research and finance_research operations', () => {
-      const inputProperty = node.description.properties.find((p) => p.name === 'input')
-      expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research', 'finance_research'])
+      expect(financeInput).toBeDefined()
+      expect(financeInput?.required).toBe(true)
+      expect(financeInput?.type).toBe('string')
+      expect(financeInput?.displayOptions?.show?.operation).toEqual(['finance_research'])
+
+      // The two share a parameter name but must not share a placeholder — a
+      // finance question example shown while configuring Research (or vice
+      // versa) is confusing rather than helpful.
+      expect(researchInput?.placeholder).not.toBe(financeInput?.placeholder)
     })
 
     test('has research effort option with all levels', () => {
@@ -442,24 +446,11 @@ describe('YouDotCom Node', () => {
       expect(queryProperty?.displayOptions?.show?.operation).toEqual(['answer'])
     })
 
-    test('has task ID parameter shown for get and stream operations', () => {
+    test('has task ID parameter shown for the get research task operation', () => {
       const taskIdProperty = node.description.properties.find((p) => p.name === 'taskId')
       expect(taskIdProperty).toBeDefined()
       expect(taskIdProperty?.required).toBe(true)
-      expect(taskIdProperty?.displayOptions?.show?.operation).toEqual(['get_research_task', 'stream_research_task'])
-    })
-
-    test('has from ID parameter shown for stream operation', () => {
-      const fromIdProperty = node.description.properties.find((p) => p.name === 'fromId')
-      expect(fromIdProperty).toBeDefined()
-      expect(fromIdProperty?.displayOptions?.show?.operation).toEqual(['stream_research_task'])
-    })
-
-    test('has streamResearchEffort parameter shown for stream operation, defaulting to standard', () => {
-      const streamResearchEffortProperty = node.description.properties.find((p) => p.name === 'streamResearchEffort')
-      expect(streamResearchEffortProperty).toBeDefined()
-      expect(streamResearchEffortProperty?.displayOptions?.show?.operation).toEqual(['stream_research_task'])
-      expect(streamResearchEffortProperty?.default).toBe('standard')
+      expect(taskIdProperty?.displayOptions?.show?.operation).toEqual(['get_research_task'])
     })
   })
 
@@ -485,6 +476,50 @@ describe('YouDotCom Node', () => {
       expect(languageValues).toContain('ZH-HANT')
       expect(languageValues).toContain('PT-BR')
       expect(languageValues).toContain('PT-PT')
+    })
+  })
+
+  describe('Node Schema Integrity', () => {
+    test('every multipleValues field has an array default, not a string', () => {
+      // n8n's "+ Add item" UI does `currentValue.push(...)` when a
+      // multipleValues field is untouched — if the schema default is a
+      // string (e.g. '') instead of [], that throws (TypeError: t.push is
+      // not a function) and the button silently does nothing in the UI.
+      // This assertion covers every multipleValues field, nested inside
+      // collections or not, so a future field can't reintroduce the bug.
+      type PropertyLike = {
+        name: string
+        type: string
+        default?: unknown
+        typeOptions?: { multipleValues?: boolean }
+        options?: unknown
+      }
+
+      function collectMultiValueDefaults(
+        props: PropertyLike[],
+        path: string,
+      ): Array<{ path: string; default: unknown }> {
+        const found: Array<{ path: string; default: unknown }> = []
+        for (const prop of props) {
+          const fullPath = `${path}${prop.name}`
+          if (prop.typeOptions?.multipleValues) {
+            found.push({ path: fullPath, default: prop.default })
+          }
+          if (prop.type === 'collection' && Array.isArray(prop.options)) {
+            found.push(...collectMultiValueDefaults(prop.options as PropertyLike[], `${fullPath}.`))
+          }
+        }
+        return found
+      }
+
+      const multiValueFields = collectMultiValueDefaults(node.description.properties as PropertyLike[], '')
+      expect(multiValueFields.length).toBeGreaterThan(0)
+      for (const field of multiValueFields) {
+        expect(
+          Array.isArray(field.default),
+          `${field.path} default should be an array, got ${JSON.stringify(field.default)}`,
+        ).toBe(true)
+      }
     })
   })
 
