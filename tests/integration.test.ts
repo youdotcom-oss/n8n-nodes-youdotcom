@@ -10,13 +10,17 @@
  * intentionally excluded to keep the suite fast and cheap. Finance research
  * is included with the default `deep` effort to verify the cost-cheapest path.
  *
- * Run: bun test tests/integration.test.ts --timeout 120000
+ * Run: bun test tests/integration.test.ts
+ * (this file raises bun's 5s default test timeout to 120s for itself only,
+ * via setDefaultTimeout — the mocked unit test suite keeps the fast default)
  */
 
-import { beforeAll, describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
 import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
 import { RESEARCH_API_BASE, SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
 import { PACKAGE_VERSION, USER_AGENT } from '../nodes/YouDotCom/YouDotCom.node.ts'
+
+setDefaultTimeout(120_000)
 
 const API_KEY = Bun.env.YDC_API_KEY ?? ''
 const SEARCH_URL = `${SEARCH_API_BASE}/v1/search`

@@ -160,6 +160,9 @@ const SAFESEARCH_OPTIONS = [
   { name: 'Strict', value: 'strict' },
 ]
 
+/** Country dropdown description shared by Search and Answer (Research's Source Control uses its own, more specific wording). */
+const COUNTRY_DESCRIPTION = 'Country code that determines the geographical focus of results'
+
 /** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
 export function toStringArray(value: unknown): string[] {
   if (value == null) return []
@@ -198,12 +201,13 @@ function applyResultFilters(body: Record<string, unknown>, options: Record<strin
   if (options.safesearch) body.safesearch = options.safesearch as string
 }
 
-/** Validate domain filter mutual exclusion and return the three normalized arrays. */
-function resolveDomainFilters(
+/** Validate domain filter mutual exclusion and copy the three normalized arrays into target when set. */
+function applyDomainFilters(
   context: IExecuteFunctions,
+  target: Record<string, unknown>,
   raw: Record<string, unknown>,
   itemIndex: number,
-): { include: string[]; exclude: string[]; boost: string[] } {
+): void {
   const include = toStringArray(raw.include_domains)
   const exclude = toStringArray(raw.exclude_domains)
   const boost = toStringArray(raw.boost_domains)
@@ -214,7 +218,9 @@ function resolveDomainFilters(
       { itemIndex },
     )
   }
-  return { include, exclude, boost }
+  if (include.length > 0) target.include_domains = include
+  if (exclude.length > 0) target.exclude_domains = exclude
+  if (boost.length > 0) target.boost_domains = boost
 }
 
 // Default client-side timeouts for Stream Research Task, mirroring the You.com
@@ -411,7 +417,7 @@ export class YouDotCom implements INodeType {
             name: 'country',
             type: 'options',
             default: '',
-            description: 'Country code that determines the geographical focus of results',
+            description: COUNTRY_DESCRIPTION,
             options: COUNTRY_OPTIONS,
           },
           {
@@ -844,7 +850,7 @@ export class YouDotCom implements INodeType {
             name: 'country',
             type: 'options',
             default: '',
-            description: 'Country code that determines the geographical focus of results',
+            description: COUNTRY_DESCRIPTION,
             options: COUNTRY_OPTIONS,
           },
           {
@@ -1012,12 +1018,6 @@ export class YouDotCom implements INodeType {
     const query = context.getNodeParameter('query', itemIndex) as string
     const options = context.getNodeParameter('searchOptions', itemIndex, {}) as Record<string, unknown>
 
-    const {
-      include: includeDomains,
-      exclude: excludeDomains,
-      boost: boostDomains,
-    } = resolveDomainFilters(context, options, itemIndex)
-
     const extraction = options.extraction as
       | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
       | undefined
@@ -1029,9 +1029,7 @@ export class YouDotCom implements INodeType {
     if (options.count != null) body.count = options.count as number
     applyResultFilters(body, options)
     if (options.offset !== undefined) body.offset = options.offset as number
-    if (includeDomains.length > 0) body.include_domains = includeDomains
-    if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
-    if (boostDomains.length > 0) body.boost_domains = boostDomains
+    applyDomainFilters(context, body, options, itemIndex)
 
     if (hasExtraction) {
       const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
@@ -1135,14 +1133,7 @@ export class YouDotCom implements INodeType {
     // source_control collection
     const sourceControl = context.getNodeParameter('sourceControl', itemIndex, {}) as Record<string, unknown>
     const scBody: Record<string, unknown> = {}
-    const {
-      include: includeDomains,
-      exclude: excludeDomains,
-      boost: boostDomains,
-    } = resolveDomainFilters(context, sourceControl, itemIndex)
-    if (includeDomains.length > 0) scBody.include_domains = includeDomains
-    if (excludeDomains.length > 0) scBody.exclude_domains = excludeDomains
-    if (boostDomains.length > 0) scBody.boost_domains = boostDomains
+    applyDomainFilters(context, scBody, sourceControl, itemIndex)
     applyResultFilters(scBody, sourceControl)
     if (Object.keys(scBody).length > 0) body.source_control = scBody
 
@@ -1186,14 +1177,7 @@ export class YouDotCom implements INodeType {
 
     const body: Record<string, unknown> = { query }
 
-    const {
-      include: includeDomains,
-      exclude: excludeDomains,
-      boost: boostDomains,
-    } = resolveDomainFilters(context, options, itemIndex)
-    if (includeDomains.length > 0) body.include_domains = includeDomains
-    if (excludeDomains.length > 0) body.exclude_domains = excludeDomains
-    if (boostDomains.length > 0) body.boost_domains = boostDomains
+    applyDomainFilters(context, body, options, itemIndex)
     applyResultFilters(body, options)
 
     const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
