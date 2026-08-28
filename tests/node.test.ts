@@ -12,7 +12,8 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * Test Strategy:
  * - Node description validation: Verify node metadata and configuration
  * - Credentials validation: Verify credential configuration
- * - Parameter validation: Verify all parameters for Web Search, Contents, and Research operations
+ * - Parameter validation: Verify all parameters for the six operations:
+ *   Web Search, Get Contents, Research, Answer, Finance Research, Get Research Task
  *
  * Note: Integration tests requiring actual n8n execution context are not included
  * as they would require spinning up an n8n instance.
@@ -70,9 +71,16 @@ describe('YouDotCom Node', () => {
 
     test('has updated description mentioning all operations', () => {
       const desc = node.description.description?.toLowerCase() ?? ''
+      // Web Search ↔ "search the web"
       expect(desc).toContain('search')
+      // Get Contents ↔ "extract content from urls"
       expect(desc).toContain('content')
+      // Answer ↔ "get answers with citations"
+      expect(desc).toContain('answer')
+      // Research ↔ "run multi-step research"
       expect(desc).toContain('research')
+      // Get Research Task ↔ "manage background research tasks"
+      expect(desc).toContain('background research')
     })
   })
 
