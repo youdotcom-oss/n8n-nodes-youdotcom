@@ -9,7 +9,7 @@
 export const PLUGIN_NAME = 'n8n-nodes-youdotcom'
 
 /** Package version for User-Agent/X-Client-Info headers. Updated automatically by publish workflow. */
-export const PACKAGE_VERSION = '0.7.0'
+export const PACKAGE_VERSION = '0.7.1'
 
 /** User-Agent string for API requests. Also used by the credential Test request. */
 export const USER_AGENT = `${PLUGIN_NAME}/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/${PLUGIN_NAME})`
