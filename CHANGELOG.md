@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-28
+
+### Fixed
+
+- **`PACKAGE_VERSION` constant was stale.** The publish workflow's `sed` command targeted `YouDotCom.node.ts` (the constant's original location), but the constant had since moved to `constants.ts`. Every release after the move silently failed to update the version, leaving `PACKAGE_VERSION` stuck at `0.6.0` while `package.json` advanced to `0.7.0`. Fixed the workflow to target `constants.ts` and updated the constant to `0.7.0`. The `X-Client-Info` and `User-Agent` headers now report the correct version on every outbound request.
+- **`@n8n/node-cli` devDependency bumped from `^0.19.0` to `^0.23.0`** to meet the n8n community node minimum required version for npm provenance publishing.
+
+## [0.7.0] - 2026-08-28
+
 ### Added
 
 - **Research parity and three new operations, matching You.com Python SDK 3.1.2.**
@@ -25,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Bumped `package.json` version to 0.6.0 and the in-source `PACKAGE_VERSION` constant to match.
+- Bumped `package.json` version to 0.7.0 and the in-source `PACKAGE_VERSION` constant to match.
 - **Contents Crawl Timeout default changed from 30 to 10**, matching the Python SDK default.
 - Set `n8n.strict` to `false`. The strict config-integrity check forbids any `eslint.config.mjs` change, which blocked scoping the `bun:test` allowance to test files. Shipped source (`credentials/`, `nodes/`) still passes the full n8n Cloud compatibility rule set; only non-shipped test files get the scoped override.
 

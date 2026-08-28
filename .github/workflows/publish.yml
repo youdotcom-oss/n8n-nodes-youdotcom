@@ -145,8 +145,8 @@ jobs:
           mv package.json.tmp package.json
           echo "Updated package.json version to $VERSION"
 
-          sed -i "s/const PACKAGE_VERSION = '.*'/const PACKAGE_VERSION = '$VERSION'/" nodes/YouDotCom/YouDotCom.node.ts
-          echo "Updated PACKAGE_VERSION in YouDotCom.node.ts to $VERSION"
+          sed -i "s/const PACKAGE_VERSION = '.*'/const PACKAGE_VERSION = '$VERSION'/" nodes/YouDotCom/constants.ts
+          echo "Updated PACKAGE_VERSION in constants.ts to $VERSION"
 
           rm -rf bun.lock node_modules
           bun install --ignore-scripts
@@ -160,7 +160,7 @@ jobs:
 
           echo "✅ Version verified: $PACKAGE_VERSION"
 
-          git add package.json bun.lock nodes/YouDotCom/YouDotCom.node.ts
+          git add package.json bun.lock nodes/YouDotCom/constants.ts
           if ! git diff --staged --quiet; then
             git commit -m "ci: publish v$VERSION [skip ci]"
             git push origin "$BRANCH_NAME"
