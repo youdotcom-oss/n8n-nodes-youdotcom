@@ -123,7 +123,7 @@ describe('Execute — Web Search request body', () => {
     expect(requests.length).toBe(1)
     expect(requests[0]?.method).toBe('POST')
     expect(requests[0]?.url).toBe('https://ydc-index.io/v1/search')
-    expect((requests[0]?.body as Record<string, unknown>).query).toBe('test query')
+    expect((requests[0]?.body as Record<string, unknown>)?.query).toBe('test query')
   })
 
   test('includes domain filters when set', async () => {
@@ -743,11 +743,14 @@ describe('Execute — .node.json docs URLs', () => {
 
   test('includes API reference URLs for all 5 APIs', async () => {
     const nodeJson = await import('../nodes/YouDotCom/YouDotCom.node.json')
-    const urls = (
-      (nodeJson.default?.resources?.primaryDocumentation ?? nodeJson.resources?.primaryDocumentation) as Array<{
-        url: string
-      }>
-    ).map((u) => u.url)
+    const urls =
+      (
+        (nodeJson.default?.resources?.primaryDocumentation ?? nodeJson.resources?.primaryDocumentation) as
+          | Array<{
+              url: string
+            }>
+          | undefined
+      )?.map((u) => u.url) ?? []
     expect(urls.some((u) => u.includes('/search/'))).toBe(true)
     expect(urls.some((u) => u.includes('/contents'))).toBe(true)
     expect(urls.some((u) => u.includes('/answer/'))).toBe(true)
@@ -773,20 +776,17 @@ describe('Execute — unknown operation', () => {
     ).rejects.toThrow('Unknown operation')
   })
 
-  test.each([
-    'constructor',
-    'toString',
-    'valueOf',
-    'hasOwnProperty',
-    '__proto__',
-  ])('throws for the inherited Object.prototype property %p instead of resolving to a builtin', async (operation) => {
-    await expect(
-      runExecute({
-        operation,
-        __credentials: {},
-      }),
-    ).rejects.toThrow('Unknown operation')
-  })
+  test.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'throws for the inherited Object.prototype property %p instead of resolving to a builtin',
+    async (operation) => {
+      await expect(
+        runExecute({
+          operation,
+          __credentials: {},
+        }),
+      ).rejects.toThrow('Unknown operation')
+    },
+  )
 })
 
 describe('Execute — continueOnFail', () => {
@@ -806,6 +806,6 @@ describe('Execute — continueOnFail', () => {
     const result = await node.execute.call(context)
     expect(result[0]).toBeDefined()
     expect(result[0]?.length).toBe(1)
-    expect((result[0]?.[0] as INodeExecutionData).json).toHaveProperty('error')
+    expect((result[0]?.[0] as INodeExecutionData)?.json).toHaveProperty('error')
   })
 })
