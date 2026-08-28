@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-28
+
+### Fixed
+
+- **`PACKAGE_VERSION` constant was stale.** The publish workflow's `sed` command targeted `YouDotCom.node.ts` (the constant's original location), but the constant had since moved to `constants.ts`. Every release after the move silently failed to update the version, leaving `PACKAGE_VERSION` stuck at `0.6.0` while `package.json` advanced to `0.7.0`. Fixed the workflow to target `constants.ts` and updated the constant to `0.7.0`. The `X-Client-Info` and `User-Agent` headers now report the correct version on every outbound request.
+- **`@n8n/node-cli` devDependency bumped from `^0.19.0` to `^0.23.0`** to meet the n8n community node minimum required version for npm provenance publishing.
+
 ## [0.7.0] - 2026-08-28
 
 ### Added
