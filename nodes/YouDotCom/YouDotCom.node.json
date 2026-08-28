@@ -6,18 +6,27 @@
   "resources": {
     "credentialDocumentation": [
       {
-        "url": "https://docs.you.com/quickstart"
+        "url": "https://docs.you.com/docs/integrations/n8n"
       }
     ],
     "primaryDocumentation": [
       {
-        "url": "https://docs.you.com/api-reference/search"
+        "url": "https://docs.you.com/docs/integrations/n8n"
       },
       {
-        "url": "https://docs.you.com/api-reference/contents"
+        "url": "https://docs.you.com/docs/api-reference/search/v1-search"
       },
       {
-        "url": "https://docs.you.com/api-reference/research"
+        "url": "https://docs.you.com/docs/api-reference/contents"
+      },
+      {
+        "url": "https://docs.you.com/docs/api-reference/answer/v1-answer"
+      },
+      {
+        "url": "https://docs.you.com/docs/api-reference/research/v1-research"
+      },
+      {
+        "url": "https://docs.you.com/docs/api-reference/finance-research/v1-finance_research"
       }
     ]
   },
@@ -33,6 +42,9 @@
     "scrape",
     "crawl",
     "research",
-    "deep research"
+    "deep research",
+    "answer",
+    "finance research",
+    "financial research"
   ]
 }

@@ -1,0 +1,38 @@
+{
+  "name": "You.com Contents Extraction (Multi-URL)",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "contents",
+        "urls": [
+          "https://en.wikipedia.org/wiki/Artificial_intelligence",
+          "https://en.wikipedia.org/wiki/Machine_learning"
+        ],
+        "contentsOptions": {
+          "formats": ["markdown", "metadata"],
+          "crawl_timeout": 20,
+          "max_age": 86400
+        }
+      },
+      "name": "You.com",
+      "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
+      "typeVersion": 1,
+      "position": [300, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "You.com", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "version": 1
+}

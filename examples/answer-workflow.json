@@ -1,0 +1,34 @@
+{
+  "name": "You.com Answer with Citations",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "answer",
+        "query": "What are the main differences between RAG and fine-tuning?",
+        "answerOptions": {
+          "freshness": "month",
+          "safesearch": "moderate"
+        }
+      },
+      "name": "You.com",
+      "type": "@youdotcom-oss/n8n-nodes-youdotcom.youDotCom",
+      "typeVersion": 1,
+      "position": [300, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "You.com", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "version": 1
+}

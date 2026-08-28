@@ -1,4 +1,6 @@
 import type { IAuthenticateGeneric, ICredentialTestRequest, ICredentialType, INodeProperties } from 'n8n-workflow'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { attributionHeaders, PACKAGE_VERSION, SEARCH_API_BASE } from '../nodes/YouDotCom/constants.ts'
 
 /**
  * You.com API credentials for n8n.
@@ -9,7 +11,7 @@ export class YouDotComApi implements ICredentialType {
   name = 'youDotComApi'
   displayName = 'You.com API'
   icon = { light: 'file:youdotcom.svg', dark: 'file:youdotcom.svg' } as const
-  documentationUrl = 'https://docs.you.com/get-started/quickstart'
+  documentationUrl = 'https://docs.you.com/docs/integrations/n8n'
   properties: INodeProperties[] = [
     {
       displayName: 'API Key',
@@ -36,13 +38,15 @@ export class YouDotComApi implements ICredentialType {
 
   test: ICredentialTestRequest = {
     request: {
-      baseURL: 'https://ydc-index.io',
+      baseURL: SEARCH_API_BASE,
       url: '/v1/search',
-      method: 'GET',
-      qs: {
+      method: 'POST',
+      headers: attributionHeaders(buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION })),
+      body: {
         query: 'test',
         count: 1,
       },
+      json: true,
     },
   }
 }

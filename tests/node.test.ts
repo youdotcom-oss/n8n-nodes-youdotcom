@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import type { INodePropertyOptions } from 'n8n-workflow'
 import { NodeConnectionTypes } from 'n8n-workflow'
 import { YouDotComApi } from '../credentials/YouDotComApi.credentials.ts'
+import { buildClientInfoHeader } from '../nodes/YouDotCom/Attribution.ts'
+import { PACKAGE_VERSION, USER_AGENT } from '../nodes/YouDotCom/constants.ts'
 import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
 
 /**
@@ -10,7 +12,8 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * Test Strategy:
  * - Node description validation: Verify node metadata and configuration
  * - Credentials validation: Verify credential configuration
- * - Parameter validation: Verify all parameters for Search, Contents, and Research operations
+ * - Parameter validation: Verify all parameters for the six operations:
+ *   Web Search, Get Contents, Research, Answer, Finance Research, Get Research Task
  *
  * Note: Integration tests requiring actual n8n execution context are not included
  * as they would require spinning up an n8n instance.
@@ -22,9 +25,11 @@ interface PropertyWithOptions {
   displayName: string
   type: string
   options?: INodePropertyOptions[]
-  typeOptions?: { minValue?: number; maxValue?: number; password?: boolean }
+  typeOptions?: { minValue?: number; maxValue?: number; password?: boolean; multipleValues?: boolean }
   displayOptions?: { show?: Record<string, string[]> }
   required?: boolean
+  default?: unknown
+  description?: string
 }
 
 describe('YouDotCom Node', () => {
@@ -66,9 +71,16 @@ describe('YouDotCom Node', () => {
 
     test('has updated description mentioning all operations', () => {
       const desc = node.description.description?.toLowerCase() ?? ''
+      // Web Search ↔ "search the web"
       expect(desc).toContain('search')
+      // Get Contents ↔ "extract content from urls"
       expect(desc).toContain('content')
+      // Answer ↔ "get answers with citations"
+      expect(desc).toContain('answer')
+      // Research ↔ "run multi-step research"
       expect(desc).toContain('research')
+      // Get Research Task ↔ "manage background research tasks"
+      expect(desc).toContain('background research')
     })
   })
 
@@ -84,7 +96,7 @@ describe('YouDotCom Node', () => {
 
       const searchOption = operationProperty?.options?.find((o) => o.value === 'search')
       expect(searchOption).toBeDefined()
-      expect(searchOption?.name).toBe('Search')
+      expect(searchOption?.name).toBe('Web Search')
       expect((searchOption as INodePropertyOptions & { action?: string })?.action).toBe('Search the web and news')
     })
 
@@ -106,13 +118,34 @@ describe('YouDotCom Node', () => {
       expect((researchOption as INodePropertyOptions & { action?: string })?.action).toBe('Research a complex question')
     })
 
-    test('has exactly three operations', () => {
+    test('has exactly six operations', () => {
       const operationProperty = getOperationProperty()
-      expect(operationProperty?.options?.length).toBe(3)
+      expect(operationProperty?.options?.length).toBe(6)
+    })
+
+    test('has answer operation', () => {
+      const operationProperty = getOperationProperty()
+      const answerOption = operationProperty?.options?.find((o) => o.value === 'answer')
+      expect(answerOption).toBeDefined()
+      expect(answerOption?.name).toBe('Answer')
+    })
+
+    test('has finance research operation', () => {
+      const operationProperty = getOperationProperty()
+      const financeOption = operationProperty?.options?.find((o) => o.value === 'finance_research')
+      expect(financeOption).toBeDefined()
+      expect(financeOption?.name).toBe('Finance Research')
+    })
+
+    test('has get research task operation', () => {
+      const operationProperty = getOperationProperty()
+      const getTaskOption = operationProperty?.options?.find((o) => o.value === 'get_research_task')
+      expect(getTaskOption).toBeDefined()
+      expect(getTaskOption?.name).toBe('Get Research Task')
     })
   })
 
-  describe('Search Parameters', () => {
+  describe('Web Search Parameters', () => {
     const getSearchOptionsProperty = (): PropertyWithOptions | undefined => {
       return node.description.properties.find((p) => p.name === 'searchOptions') as PropertyWithOptions | undefined
     }
@@ -123,8 +156,10 @@ describe('YouDotCom Node', () => {
       return options?.find((o) => o.displayName === displayName)
     }
 
-    test('has query parameter as required', () => {
-      const queryProperty = node.description.properties.find((p) => p.name === 'query')
+    test('has search query parameter as required', () => {
+      const queryProperty = node.description.properties.find(
+        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('search'),
+      )
       expect(queryProperty).toBeDefined()
       expect(queryProperty?.required).toBe(true)
       expect(queryProperty?.type).toBe('string')
@@ -178,29 +213,7 @@ describe('YouDotCom Node', () => {
       expect(languageValues).toContain('EN')
       expect(languageValues).toContain('DE')
       expect(languageValues).toContain('FR')
-      expect(languageValues).toContain('JP')
-    })
-
-    test('has livecrawl option', () => {
-      const livecrawlOption = getSearchOption('Livecrawl')
-      expect(livecrawlOption).toBeDefined()
-      expect(livecrawlOption?.type).toBe('options')
-
-      const livecrawlValues = livecrawlOption?.options?.map((o) => o.value)
-      expect(livecrawlValues).toContain('web')
-      expect(livecrawlValues).toContain('news')
-      expect(livecrawlValues).toContain('all')
-    })
-
-    test('has livecrawl format option with conditional display', () => {
-      const formatOption = getSearchOption('Livecrawl Format')
-      expect(formatOption).toBeDefined()
-      expect(formatOption?.type).toBe('options')
-      expect(formatOption?.displayOptions?.show?.livecrawl).toEqual(['web', 'news', 'all'])
-
-      const formatValues = formatOption?.options?.map((o) => o.value)
-      expect(formatValues).toContain('html')
-      expect(formatValues).toContain('markdown')
+      expect(languageValues).toContain('JA')
     })
 
     test('has offset option with correct constraints', () => {
@@ -220,6 +233,58 @@ describe('YouDotCom Node', () => {
       expect(safesearchValues).toContain('off')
       expect(safesearchValues).toContain('moderate')
       expect(safesearchValues).toContain('strict')
+    })
+
+    test('has include_domains / exclude_domains / boost_domains as multi-string inputs', () => {
+      for (const name of ['include_domains', 'exclude_domains', 'boost_domains']) {
+        const opt = getSearchOption(
+          name === 'include_domains'
+            ? 'Include Domains'
+            : name === 'exclude_domains'
+              ? 'Exclude Domains'
+              : 'Boost Domains',
+        )
+        expect(opt, `expected search option for ${name}`).toBeDefined()
+        expect(opt?.name).toBe(name)
+        expect(opt?.type).toBe('string')
+        expect(opt?.typeOptions?.multipleValues).toBe(true)
+      }
+    })
+
+    test('has extraction collection with extraction_mode and full_page.extraction_formats', () => {
+      const extraction = getSearchOption('Extraction')
+      expect(extraction).toBeDefined()
+      expect(extraction?.name).toBe('extraction')
+      expect(extraction?.type).toBe('collection')
+      const exOptions = extraction?.options as unknown as PropertyWithOptions[] | undefined
+      const mode = exOptions?.find((o) => o.name === 'extraction_mode')
+      expect(mode).toBeDefined()
+      expect(mode?.type).toBe('options')
+      const modeValues = mode?.options?.map((o) => o.value)
+      expect(modeValues).toContain('highlights')
+      expect(modeValues).toContain('full_page')
+      const fullPage = exOptions?.find((o) => o.name === 'full_page')
+      expect(fullPage).toBeDefined()
+      expect(fullPage?.type).toBe('collection')
+      // full_page sub-collection only shows when extraction_mode == full_page
+      expect(fullPage?.displayOptions?.show?.extraction_mode).toEqual(['full_page'])
+      const fpOptions = fullPage?.options as unknown as PropertyWithOptions[] | undefined
+      const formats = fpOptions?.find((o) => o.name === 'extraction_formats')
+      expect(formats).toBeDefined()
+      expect(formats?.type).toBe('multiOptions')
+      const formatValues = formats?.options?.map((o) => o.value)
+      expect(formatValues).toContain('markdown')
+      expect(formatValues).toContain('html')
+    })
+
+    test('has crawl_timeout option with constraints 1-60 default 10', () => {
+      const ct = getSearchOption('Crawl Timeout')
+      expect(ct).toBeDefined()
+      expect(ct?.name).toBe('crawl_timeout')
+      expect(ct?.type).toBe('number')
+      expect(ct?.typeOptions?.minValue).toBe(1)
+      expect(ct?.typeOptions?.maxValue).toBe(60)
+      expect(ct?.default).toBe(10)
     })
   })
 
@@ -270,19 +335,48 @@ describe('YouDotCom Node', () => {
       expect(timeoutOption?.typeOptions?.minValue).toBe(1)
       expect(timeoutOption?.typeOptions?.maxValue).toBe(60)
     })
+
+    test('crawl timeout defaults to 10 (SDK parity)', () => {
+      const timeoutOption = getContentsOption('Crawl Timeout')
+      expect(timeoutOption?.default).toBe(10)
+    })
+
+    test('urls parameter supports multiple values', () => {
+      const urlsProperty = node.description.properties.find((p) => p.name === 'urls')
+      expect(urlsProperty?.typeOptions?.multipleValues).toBe(true)
+    })
+
+    test('has max_age option with minValue 0', () => {
+      const maxAgeOption = getContentsOption('Max Age')
+      expect(maxAgeOption).toBeDefined()
+      expect(maxAgeOption?.name).toBe('max_age')
+      expect(maxAgeOption?.type).toBe('number')
+      expect(maxAgeOption?.typeOptions?.minValue).toBe(0)
+    })
   })
 
   describe('Research Parameters', () => {
-    test('has input parameter as required', () => {
-      const inputProperty = node.description.properties.find((p) => p.name === 'input')
-      expect(inputProperty).toBeDefined()
-      expect(inputProperty?.required).toBe(true)
-      expect(inputProperty?.type).toBe('string')
-    })
+    test('has input parameter as required for both research and finance_research, with distinct examples', () => {
+      const researchInput = node.description.properties.find(
+        (p) => p.name === 'input' && p.displayOptions?.show?.operation?.includes('research'),
+      )
+      const financeInput = node.description.properties.find(
+        (p) => p.name === 'input' && p.displayOptions?.show?.operation?.includes('finance_research'),
+      )
+      expect(researchInput).toBeDefined()
+      expect(researchInput?.required).toBe(true)
+      expect(researchInput?.type).toBe('string')
+      expect(researchInput?.displayOptions?.show?.operation).toEqual(['research'])
 
-    test('input parameter is only shown for research operation', () => {
-      const inputProperty = node.description.properties.find((p) => p.name === 'input')
-      expect(inputProperty?.displayOptions?.show?.operation).toEqual(['research'])
+      expect(financeInput).toBeDefined()
+      expect(financeInput?.required).toBe(true)
+      expect(financeInput?.type).toBe('string')
+      expect(financeInput?.displayOptions?.show?.operation).toEqual(['finance_research'])
+
+      // The two share a parameter name but must not share a placeholder — a
+      // finance question example shown while configuring Research (or vice
+      // versa) is confusing rather than helpful.
+      expect(researchInput?.placeholder).not.toBe(financeInput?.placeholder)
     })
 
     test('has research effort option with all levels', () => {
@@ -307,6 +401,133 @@ describe('YouDotCom Node', () => {
     test('research effort is only shown for research operation', () => {
       const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort')
       expect(effortProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('research effort includes frontier option', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'researchEffort') as
+        | PropertyWithOptions
+        | undefined
+      const effortValues = effortProperty?.options?.map((o) => o.value)
+      expect(effortValues).toContain('frontier')
+    })
+
+    test('has background parameter with default false', () => {
+      const bgProperty = node.description.properties.find((p) => p.name === 'background')
+      expect(bgProperty).toBeDefined()
+      expect(bgProperty?.type).toBe('boolean')
+      expect(bgProperty?.default).toBe(false)
+      expect(bgProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('has source control collection', () => {
+      const scProperty = node.description.properties.find((p) => p.name === 'sourceControl')
+      expect(scProperty).toBeDefined()
+      expect(scProperty?.type).toBe('collection')
+      expect(scProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('has output schema parameter', () => {
+      const osProperty = node.description.properties.find((p) => p.name === 'outputSchema')
+      expect(osProperty).toBeDefined()
+      expect(osProperty?.type).toBe('string')
+      expect(osProperty?.displayOptions?.show?.operation).toEqual(['research'])
+    })
+
+    test('has finance research effort with deep and exhaustive', () => {
+      const effortProperty = node.description.properties.find((p) => p.name === 'financeResearchEffort') as
+        | PropertyWithOptions
+        | undefined
+      expect(effortProperty).toBeDefined()
+      expect(effortProperty?.default).toBe('deep')
+      expect(effortProperty?.displayOptions?.show?.operation).toEqual(['finance_research'])
+      const effortValues = effortProperty?.options?.map((o) => o.value)
+      expect(effortValues).toContain('deep')
+      expect(effortValues).toContain('exhaustive')
+    })
+
+    test('has answer query parameter as required', () => {
+      const queryProperty = node.description.properties.find(
+        (p) => p.name === 'query' && p.displayOptions?.show?.operation?.includes('answer'),
+      )
+      expect(queryProperty).toBeDefined()
+      expect(queryProperty?.required).toBe(true)
+      expect(queryProperty?.displayOptions?.show?.operation).toEqual(['answer'])
+    })
+
+    test('has task ID parameter shown for the get research task operation', () => {
+      const taskIdProperty = node.description.properties.find((p) => p.name === 'taskId')
+      expect(taskIdProperty).toBeDefined()
+      expect(taskIdProperty?.required).toBe(true)
+      expect(taskIdProperty?.displayOptions?.show?.operation).toEqual(['get_research_task'])
+    })
+  })
+
+  describe('Answer Parameters', () => {
+    const getAnswerOptionsProperty = (): PropertyWithOptions | undefined => {
+      return node.description.properties.find((p) => p.name === 'answerOptions') as PropertyWithOptions | undefined
+    }
+
+    const getAnswerOption = (displayName: string): PropertyWithOptions | undefined => {
+      const optionsProperty = getAnswerOptionsProperty()
+      const options = optionsProperty?.options as unknown as PropertyWithOptions[] | undefined
+      return options?.find((o) => o.displayName === displayName)
+    }
+
+    test('has language option matching Web Search, including non-Latin-script languages', () => {
+      const languageOption = getAnswerOption('Language')
+      expect(languageOption).toBeDefined()
+      expect(languageOption?.type).toBe('options')
+
+      const languageValues = languageOption?.options?.map((o) => o.value)
+      expect(languageValues).toContain('JA')
+      expect(languageValues).toContain('ZH-HANS')
+      expect(languageValues).toContain('ZH-HANT')
+      expect(languageValues).toContain('PT-BR')
+      expect(languageValues).toContain('PT-PT')
+    })
+  })
+
+  describe('Node Schema Integrity', () => {
+    test('every multipleValues field has an array default, not a string', () => {
+      // n8n's "+ Add item" UI does `currentValue.push(...)` when a
+      // multipleValues field is untouched — if the schema default is a
+      // string (e.g. '') instead of [], that throws (TypeError: t.push is
+      // not a function) and the button silently does nothing in the UI.
+      // This assertion covers every multipleValues field, nested inside
+      // collections or not, so a future field can't reintroduce the bug.
+      type PropertyLike = {
+        name: string
+        type: string
+        default?: unknown
+        typeOptions?: { multipleValues?: boolean }
+        options?: unknown
+      }
+
+      function collectMultiValueDefaults(
+        props: PropertyLike[],
+        path: string,
+      ): Array<{ path: string; default: unknown }> {
+        const found: Array<{ path: string; default: unknown }> = []
+        for (const prop of props) {
+          const fullPath = `${path}${prop.name}`
+          if (prop.typeOptions?.multipleValues) {
+            found.push({ path: fullPath, default: prop.default })
+          }
+          if (prop.type === 'collection' && Array.isArray(prop.options)) {
+            found.push(...collectMultiValueDefaults(prop.options as PropertyLike[], `${fullPath}.`))
+          }
+        }
+        return found
+      }
+
+      const multiValueFields = collectMultiValueDefaults(node.description.properties as PropertyLike[], '')
+      expect(multiValueFields.length).toBeGreaterThan(0)
+      for (const field of multiValueFields) {
+        expect(
+          Array.isArray(field.default),
+          `${field.path} default should be an array, got ${JSON.stringify(field.default)}`,
+        ).toBe(true)
+      }
     })
   })
 
@@ -334,7 +555,7 @@ describe('YouDotComApi Credentials', () => {
     })
 
     test('has documentation URL', () => {
-      expect(credentials.documentationUrl).toBe('https://docs.you.com/get-started/quickstart')
+      expect(credentials.documentationUrl).toBe('https://docs.you.com/docs/integrations/n8n')
     })
   })
 
@@ -345,6 +566,11 @@ describe('YouDotComApi Credentials', () => {
       expect(apiKeyProperty?.type).toBe('string')
       expect(apiKeyProperty?.required).toBe(true)
       expect(apiKeyProperty?.typeOptions?.password).toBe(true)
+    })
+
+    test('has only API key property (attribution is automatic)', () => {
+      expect(credentials.properties.length).toBe(1)
+      expect(credentials.properties[0]?.name).toBe('apiKey')
     })
   })
 
@@ -360,8 +586,15 @@ describe('YouDotComApi Credentials', () => {
       expect(credentials.test).toBeDefined()
       expect(credentials.test.request.baseURL).toBe('https://ydc-index.io')
       expect(credentials.test.request.url).toBe('/v1/search')
-      expect(credentials.test.request.method).toBe('GET')
-      expect(credentials.test.request.qs?.query).toBe('test')
+      expect(credentials.test.request.method).toBe('POST')
+      expect((credentials.test.request as { body?: { query?: string } }).body?.query).toBe('test')
+      expect(credentials.test.request.json).toBe(true)
+    })
+
+    test('tags the test request with the same attribution headers as real requests', () => {
+      const headers = credentials.test.request.headers as Record<string, string> | undefined
+      expect(headers?.['User-Agent']).toBe(USER_AGENT)
+      expect(headers?.['X-Client-Info']).toBe(buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION }))
     })
   })
 })

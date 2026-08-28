@@ -1,21 +1,216 @@
 import type {
   IDataObject,
   IExecuteFunctions,
+  IHttpRequestOptions,
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
   JsonObject,
 } from 'n8n-workflow'
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow'
+import { buildClientInfoHeader } from './Attribution.ts'
+import { attributionHeaders, PACKAGE_VERSION, RESEARCH_API_BASE, SEARCH_API_BASE } from './constants.ts'
 
-/** Package version for User-Agent header. Updated automatically by publish workflow. */
-const PACKAGE_VERSION = '0.2.9'
+/** Signature shared by every `#execute*` operation handler. */
+type OperationHandler = (
+  context: IExecuteFunctions,
+  itemIndex: number,
+  clientInfoHeader: string,
+) => Promise<IDataObject | IDataObject[]>
 
-/** User-Agent string for API requests */
-const USER_AGENT = `n8n-nodes-youdotcom/${PACKAGE_VERSION} (https://github.com/youdotcom-oss/n8n-nodes-youdotcom)`
+/** Issue an authenticated You.com API request with the attribution headers attached. */
+function callYouDotComApi(
+  context: IExecuteFunctions,
+  clientInfoHeader: string,
+  options: Omit<IHttpRequestOptions, 'headers'>,
+): Promise<unknown> {
+  return context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    ...options,
+    headers: attributionHeaders(clientInfoHeader),
+  })
+}
+
+/** Country dropdown options shared by Web Search, Research Source Control, and Answer. */
+const COUNTRY_OPTIONS = [
+  { name: 'Any', value: '' },
+  { name: 'Argentina', value: 'AR' },
+  { name: 'Australia', value: 'AU' },
+  { name: 'Austria', value: 'AT' },
+  { name: 'Belgium', value: 'BE' },
+  { name: 'Brazil', value: 'BR' },
+  { name: 'Canada', value: 'CA' },
+  { name: 'Chile', value: 'CL' },
+  { name: 'China', value: 'CN' },
+  { name: 'Denmark', value: 'DK' },
+  { name: 'Finland', value: 'FI' },
+  { name: 'France', value: 'FR' },
+  { name: 'Germany', value: 'DE' },
+  { name: 'Hong Kong', value: 'HK' },
+  { name: 'India', value: 'IN' },
+  { name: 'Indonesia', value: 'ID' },
+  { name: 'Italy', value: 'IT' },
+  { name: 'Japan', value: 'JP' },
+  { name: 'Malaysia', value: 'MY' },
+  { name: 'Mexico', value: 'MX' },
+  { name: 'Netherlands', value: 'NL' },
+  { name: 'New Zealand', value: 'NZ' },
+  { name: 'Norway', value: 'NO' },
+  { name: 'Philippines', value: 'PH' },
+  { name: 'Poland', value: 'PL' },
+  { name: 'Portugal', value: 'PT' },
+  { name: 'Russia', value: 'RU' },
+  { name: 'Saudi Arabia', value: 'SA' },
+  { name: 'South Africa', value: 'ZA' },
+  { name: 'South Korea', value: 'KR' },
+  { name: 'Spain', value: 'ES' },
+  { name: 'Sweden', value: 'SE' },
+  { name: 'Switzerland', value: 'CH' },
+  { name: 'Taiwan', value: 'TW' },
+  { name: 'Turkey', value: 'TR' },
+  { name: 'United Kingdom', value: 'GB' },
+  { name: 'United States', value: 'US' },
+]
+
+/** BCP 47 language dropdown options shared by Web Search and Answer. */
+const LANGUAGE_OPTIONS = [
+  { name: 'Arabic', value: 'AR' },
+  { name: 'Basque', value: 'EU' },
+  { name: 'Bengali', value: 'BN' },
+  { name: 'Bulgarian', value: 'BG' },
+  { name: 'Catalan', value: 'CA' },
+  { name: 'Chinese (Simplified)', value: 'ZH-HANS' },
+  { name: 'Chinese (Traditional)', value: 'ZH-HANT' },
+  { name: 'Croatian', value: 'HR' },
+  { name: 'Czech', value: 'CS' },
+  { name: 'Danish', value: 'DA' },
+  { name: 'Dutch', value: 'NL' },
+  { name: 'English', value: 'EN' },
+  { name: 'English (UK)', value: 'EN-GB' },
+  { name: 'Estonian', value: 'ET' },
+  { name: 'Finnish', value: 'FI' },
+  { name: 'French', value: 'FR' },
+  { name: 'Galician', value: 'GL' },
+  { name: 'German', value: 'DE' },
+  { name: 'Greek', value: 'EL' },
+  { name: 'Gujarati', value: 'GU' },
+  { name: 'Hebrew', value: 'HE' },
+  { name: 'Hindi', value: 'HI' },
+  { name: 'Hungarian', value: 'HU' },
+  { name: 'Icelandic', value: 'IS' },
+  { name: 'Italian', value: 'IT' },
+  { name: 'Japanese', value: 'JA' },
+  { name: 'Kannada', value: 'KN' },
+  { name: 'Korean', value: 'KO' },
+  { name: 'Latvian', value: 'LV' },
+  { name: 'Lithuanian', value: 'LT' },
+  { name: 'Malay', value: 'MS' },
+  { name: 'Malayalam', value: 'ML' },
+  { name: 'Marathi', value: 'MR' },
+  { name: 'Norwegian', value: 'NB' },
+  { name: 'Polish', value: 'PL' },
+  { name: 'Portuguese (Brazil)', value: 'PT-BR' },
+  { name: 'Portuguese (Portugal)', value: 'PT-PT' },
+  { name: 'Punjabi', value: 'PA' },
+  { name: 'Romanian', value: 'RO' },
+  { name: 'Russian', value: 'RU' },
+  { name: 'Serbian', value: 'SR' },
+  { name: 'Slovak', value: 'SK' },
+  { name: 'Slovenian', value: 'SL' },
+  { name: 'Spanish', value: 'ES' },
+  { name: 'Swedish', value: 'SV' },
+  { name: 'Tamil', value: 'TA' },
+  { name: 'Telugu', value: 'TE' },
+  { name: 'Thai', value: 'TH' },
+  { name: 'Turkish', value: 'TR' },
+  { name: 'Ukrainian', value: 'UK' },
+  { name: 'Vietnamese', value: 'VI' },
+]
+
+/** Freshness dropdown options shared by Web Search, Research Source Control, and Answer. */
+const FRESHNESS_OPTIONS = [
+  { name: 'Any Time', value: '' },
+  { name: 'Past Day', value: 'day' },
+  { name: 'Past Month', value: 'month' },
+  { name: 'Past Week', value: 'week' },
+  { name: 'Past Year', value: 'year' },
+]
+
+/** Freshness dropdown description shared by Web Search, Research Source Control, and Answer. */
+const FRESHNESS_DESCRIPTION =
+  'Filter results by recency. Select day, week, month, or year, or switch to Expression mode for a custom date range (YYYY-MM-DDtoYYYY-MM-DD).'
+
+/** Safe Search dropdown options shared by Web Search and Answer. Answer additionally prepends a "Default" (server-chosen) option. */
+const SAFESEARCH_OPTIONS = [
+  { name: 'Off', value: 'off' },
+  { name: 'Moderate', value: 'moderate' },
+  { name: 'Strict', value: 'strict' },
+]
+
+/** Country dropdown description shared by Web Search and Answer (Research's Source Control uses its own, more specific wording). */
+const COUNTRY_DESCRIPTION = 'Country code that determines the geographical focus of results'
+
+/** Normalize a multi-string n8n value (string | string[] | undefined) to a trimmed string[]. */
+export function toStringArray(value: unknown): string[] {
+  if (value == null) return []
+  const arr = Array.isArray(value) ? value : [value]
+  return arr.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
+}
+
+/** Normalize URLs from a multi-string or CSV string n8n value to a trimmed string[].
+ *
+ * When the input is already an array (the n8n multi-string "+ button" UI), each
+ * element is treated as a complete URL and trimmed. When the input is a single
+ * string, it is split on commas as a CSV fallback for users who paste a list.
+ * This avoids corrupting URLs that legitimately contain commas in their path or
+ * query string (e.g. `https://example.com/path?a=1,2`) when the user used the
+ * multi-string UI.
+ */
+export function toUrlList(value: unknown): string[] {
+  if (value == null) return []
+  // Multi-string UI produces an array — each element is a whole URL, do not split.
+  if (Array.isArray(value)) return toStringArray(value)
+  // Single string — split on commas as a CSV convenience.
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '')
+  }
+  return []
+}
+
+/** Copy the country/freshness/language/safesearch result filters (shared by Web Search and Answer) into body when set. */
+function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
+  if (options.country) body.country = options.country as string
+  if (options.freshness) body.freshness = options.freshness as string
+  if (options.language) body.language = options.language as string
+  if (options.safesearch) body.safesearch = options.safesearch as string
+}
+
+/** Validate domain filter mutual exclusion and copy the three normalized arrays into target when set. */
+function applyDomainFilters(
+  context: IExecuteFunctions,
+  target: Record<string, unknown>,
+  raw: Record<string, unknown>,
+  itemIndex: number,
+): void {
+  const include = toStringArray(raw.include_domains)
+  const exclude = toStringArray(raw.exclude_domains)
+  const boost = toStringArray(raw.boost_domains)
+  if (include.length > 0 && (exclude.length > 0 || boost.length > 0)) {
+    throw new NodeOperationError(
+      context.getNode(),
+      'Include Domains cannot be combined with Exclude Domains or Boost Domains.',
+      { itemIndex },
+    )
+  }
+  if (include.length > 0) target.include_domains = include
+  if (exclude.length > 0) target.exclude_domains = exclude
+  if (boost.length > 0) target.boost_domains = boost
+}
 
 /**
- * You.com node for n8n - Search, Contents, and Research operations.
+ * You.com node for n8n - Web Search, Contents, and Research operations.
  *
  * NOTE: n8n framework requires class-based nodes that implement INodeType.
  */
@@ -26,9 +221,11 @@ export class YouDotCom implements INodeType {
     icon: 'file:youdotcom.svg',
     group: ['transform'],
     version: 1,
+    documentationUrl: 'https://docs.you.com/docs/integrations/n8n',
     usableAsTool: true,
     subtitle: '={{$parameter["operation"]}}',
-    description: 'Search the web, extract content from URLs, and run multi-step research using You.com APIs',
+    description:
+      'Search the web, extract content from URLs, get answers with citations, run multi-step research, and manage background research tasks using You.com APIs',
     defaults: {
       name: 'You.com',
     },
@@ -51,10 +248,28 @@ export class YouDotCom implements INodeType {
         noDataExpression: true,
         options: [
           {
+            name: 'Answer',
+            value: 'answer',
+            description: 'Get a synthesized answer with citations from web search results',
+            action: 'Get an answer with citations',
+          },
+          {
+            name: 'Finance Research',
+            value: 'finance_research',
+            description: 'Get finance-grade research answers with citations from financial data sources',
+            action: 'Research a financial question',
+          },
+          {
             name: 'Get Contents',
             value: 'contents',
             description: 'Extract content from one or more URLs',
             action: 'Extract content from web pages',
+          },
+          {
+            name: 'Get Research Task',
+            value: 'get_research_task',
+            description: 'Poll the status of a background research task',
+            action: 'Get a research task status',
           },
           {
             name: 'Research',
@@ -63,7 +278,7 @@ export class YouDotCom implements INodeType {
             action: 'Research a complex question',
           },
           {
-            name: 'Search',
+            name: 'Web Search',
             value: 'search',
             description: 'Search the web and news using You.com',
             action: 'Search the web and news',
@@ -73,7 +288,7 @@ export class YouDotCom implements INodeType {
       },
 
       // ====================
-      // Search Parameters
+      // Web Search Parameters
       // ====================
       {
         displayName: 'Query',
@@ -91,7 +306,7 @@ export class YouDotCom implements INodeType {
           'The search query. Supports operators: site: (domain), filetype: (file type), + (require), - (exclude), AND, OR, NOT. Example: Python OR PyTorch -TensorFlow filetype:pdf',
       },
       {
-        displayName: 'Search Options',
+        displayName: 'Web Search Options',
         name: 'searchOptions',
         type: 'collection',
         placeholder: 'Add Option',
@@ -102,6 +317,17 @@ export class YouDotCom implements INodeType {
           },
         },
         options: [
+          {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Boost ranking for these domains without excluding others (up to 500). Cannot combine with Include Domains. Can combine with Exclude Domains.',
+          },
           {
             displayName: 'Count',
             name: 'count',
@@ -118,45 +344,84 @@ export class YouDotCom implements INodeType {
             name: 'country',
             type: 'options',
             default: '',
-            description: 'Country code that determines the geographical focus of results',
+            description: COUNTRY_DESCRIPTION,
+            options: COUNTRY_OPTIONS,
+          },
+          {
+            displayName: 'Crawl Timeout',
+            name: 'crawl_timeout',
+            type: 'number',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 60,
+            },
+            default: 10,
+            description:
+              'Maximum seconds to wait for page content when extraction (Full Page) is enabled (1-60, default 10). Ignored when Extraction Mode is Highlights.',
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Filter out results from these domains (up to 500). Cannot combine with Include Domains. Can combine with Boost Domains.',
+          },
+          {
+            displayName: 'Extraction',
+            name: 'extraction',
+            type: 'collection',
+            placeholder: 'Add extraction',
+            default: {},
+            description: 'Controls how page content is attached to each result',
             options: [
-              { name: 'Any', value: '' },
-              { name: 'Argentina', value: 'AR' },
-              { name: 'Australia', value: 'AU' },
-              { name: 'Austria', value: 'AT' },
-              { name: 'Belgium', value: 'BE' },
-              { name: 'Brazil', value: 'BR' },
-              { name: 'Canada', value: 'CA' },
-              { name: 'Chile', value: 'CL' },
-              { name: 'China', value: 'CN' },
-              { name: 'Denmark', value: 'DK' },
-              { name: 'Finland', value: 'FI' },
-              { name: 'France', value: 'FR' },
-              { name: 'Germany', value: 'DE' },
-              { name: 'Hong Kong', value: 'HK' },
-              { name: 'India', value: 'IN' },
-              { name: 'Indonesia', value: 'ID' },
-              { name: 'Italy', value: 'IT' },
-              { name: 'Japan', value: 'JP' },
-              { name: 'Malaysia', value: 'MY' },
-              { name: 'Mexico', value: 'MX' },
-              { name: 'Netherlands', value: 'NL' },
-              { name: 'New Zealand', value: 'NZ' },
-              { name: 'Norway', value: 'NO' },
-              { name: 'Philippines', value: 'PH' },
-              { name: 'Poland', value: 'PL' },
-              { name: 'Portugal', value: 'PT' },
-              { name: 'Russia', value: 'RU' },
-              { name: 'Saudi Arabia', value: 'SA' },
-              { name: 'South Africa', value: 'ZA' },
-              { name: 'South Korea', value: 'KR' },
-              { name: 'Spain', value: 'ES' },
-              { name: 'Sweden', value: 'SE' },
-              { name: 'Switzerland', value: 'CH' },
-              { name: 'Taiwan', value: 'TW' },
-              { name: 'Turkey', value: 'TR' },
-              { name: 'United Kingdom', value: 'GB' },
-              { name: 'United States', value: 'US' },
+              {
+                displayName: 'Extraction Mode',
+                name: 'extraction_mode',
+                type: 'options',
+                default: 'highlights',
+                description: 'Highlights returns query-relevant excerpts; full_page returns full HTML/Markdown',
+                options: [
+                  {
+                    name: 'Highlights',
+                    value: 'highlights',
+                    description: 'Query-relevant excerpts in results.web[].contents.highlights',
+                  },
+                  {
+                    name: 'Full Page',
+                    value: 'full_page',
+                    description: 'Full HTML/Markdown in results.web[].contents.html / .markdown',
+                  },
+                ],
+              },
+              {
+                displayName: 'Full Page',
+                name: 'full_page',
+                type: 'collection',
+                placeholder: 'Add full page options',
+                default: {},
+                displayOptions: {
+                  show: {
+                    extraction_mode: ['full_page'],
+                  },
+                },
+                options: [
+                  {
+                    displayName: 'Extraction Formats',
+                    name: 'extraction_formats',
+                    type: 'multiOptions',
+                    default: ['markdown'],
+                    description: 'Format(s) returned for each result (default markdown)',
+                    options: [
+                      { name: 'Markdown', value: 'markdown' },
+                      { name: 'HTML', value: 'html' },
+                    ],
+                  },
+                ],
+              },
             ],
           },
           {
@@ -164,14 +429,19 @@ export class YouDotCom implements INodeType {
             name: 'freshness',
             type: 'options',
             default: '',
-            description: 'Filter results by recency',
-            options: [
-              { name: 'Any Time', value: '' },
-              { name: 'Past Day', value: 'day' },
-              { name: 'Past Month', value: 'month' },
-              { name: 'Past Week', value: 'week' },
-              { name: 'Past Year', value: 'year' },
-            ],
+            description: FRESHNESS_DESCRIPTION,
+            options: FRESHNESS_OPTIONS,
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Restrict results to these domains (strict allowlist, up to 500). Cannot combine with Exclude Domains or Boost Domains.',
           },
           {
             displayName: 'Language',
@@ -179,87 +449,7 @@ export class YouDotCom implements INodeType {
             type: 'options',
             default: 'EN',
             description: 'Language of the web results (BCP 47 format)',
-            options: [
-              { name: 'Arabic', value: 'AR' },
-              { name: 'Bengali', value: 'BN' },
-              { name: 'Bulgarian', value: 'BG' },
-              { name: 'Catalan', value: 'CA' },
-              { name: 'Chinese (Simplified)', value: 'ZH-HANS' },
-              { name: 'Chinese (Traditional)', value: 'ZH-HANT' },
-              { name: 'Croatian', value: 'HR' },
-              { name: 'Czech', value: 'CS' },
-              { name: 'Danish', value: 'DA' },
-              { name: 'Dutch', value: 'NL' },
-              { name: 'English', value: 'EN' },
-              { name: 'English (UK)', value: 'EN-GB' },
-              { name: 'Estonian', value: 'ET' },
-              { name: 'Finnish', value: 'FI' },
-              { name: 'French', value: 'FR' },
-              { name: 'Galician', value: 'GL' },
-              { name: 'German', value: 'DE' },
-              { name: 'Greek', value: 'EL' },
-              { name: 'Gujarati', value: 'GU' },
-              { name: 'Hebrew', value: 'HE' },
-              { name: 'Hindi', value: 'HI' },
-              { name: 'Hungarian', value: 'HU' },
-              { name: 'Icelandic', value: 'IS' },
-              { name: 'Italian', value: 'IT' },
-              { name: 'Japanese', value: 'JP' },
-              { name: 'Kannada', value: 'KN' },
-              { name: 'Korean', value: 'KO' },
-              { name: 'Latvian', value: 'LV' },
-              { name: 'Lithuanian', value: 'LT' },
-              { name: 'Malay', value: 'MS' },
-              { name: 'Malayalam', value: 'ML' },
-              { name: 'Marathi', value: 'MR' },
-              { name: 'Norwegian', value: 'NB' },
-              { name: 'Polish', value: 'PL' },
-              { name: 'Portuguese (Brazil)', value: 'PT-BR' },
-              { name: 'Portuguese (Portugal)', value: 'PT-PT' },
-              { name: 'Punjabi', value: 'PA' },
-              { name: 'Romanian', value: 'RO' },
-              { name: 'Russian', value: 'RU' },
-              { name: 'Serbian', value: 'SR' },
-              { name: 'Slovak', value: 'SK' },
-              { name: 'Slovenian', value: 'SL' },
-              { name: 'Spanish', value: 'ES' },
-              { name: 'Swedish', value: 'SV' },
-              { name: 'Tamil', value: 'TA' },
-              { name: 'Telugu', value: 'TE' },
-              { name: 'Thai', value: 'TH' },
-              { name: 'Turkish', value: 'TR' },
-              { name: 'Ukrainian', value: 'UK' },
-              { name: 'Vietnamese', value: 'VI' },
-            ],
-          },
-          {
-            displayName: 'Livecrawl',
-            name: 'livecrawl',
-            type: 'options',
-            default: '',
-            description: 'Fetch and return full page content for search results',
-            options: [
-              { name: 'None', value: '' },
-              { name: 'Web Results Only', value: 'web' },
-              { name: 'News Results Only', value: 'news' },
-              { name: 'All Results', value: 'all' },
-            ],
-          },
-          {
-            displayName: 'Livecrawl Format',
-            name: 'livecrawl_formats',
-            type: 'options',
-            default: 'markdown',
-            description: 'Format for livecrawled content',
-            displayOptions: {
-              show: {
-                livecrawl: ['web', 'news', 'all'],
-              },
-            },
-            options: [
-              { name: 'HTML', value: 'html' },
-              { name: 'Markdown', value: 'markdown' },
-            ],
+            options: LANGUAGE_OPTIONS,
           },
           {
             displayName: 'Offset',
@@ -279,11 +469,7 @@ export class YouDotCom implements INodeType {
             type: 'options',
             default: 'moderate',
             description: 'Content moderation filter level',
-            options: [
-              { name: 'Off', value: 'off' },
-              { name: 'Moderate', value: 'moderate' },
-              { name: 'Strict', value: 'strict' },
-            ],
+            options: SAFESEARCH_OPTIONS,
           },
         ],
       },
@@ -295,15 +481,19 @@ export class YouDotCom implements INodeType {
         displayName: 'URLs',
         name: 'urls',
         type: 'string',
+        typeOptions: {
+          multipleValues: true,
+        },
         required: true,
         displayOptions: {
           show: {
             operation: ['contents'],
           },
         },
-        default: '',
-        placeholder: 'https://example.com, https://example.org',
-        description: 'Comma-separated list of URLs to extract content from',
+        default: [],
+        placeholder: 'https://example.com',
+        description:
+          'One or more URLs to extract content from. Use the + button to add multiple URLs, or enter a comma-separated list.',
       },
       {
         displayName: 'Contents Options',
@@ -317,6 +507,17 @@ export class YouDotCom implements INodeType {
           },
         },
         options: [
+          {
+            displayName: 'Crawl Timeout',
+            name: 'crawl_timeout',
+            type: 'number',
+            typeOptions: {
+              minValue: 1,
+              maxValue: 60,
+            },
+            default: 10,
+            description: 'Maximum time in seconds to wait for page content (1-60, default 10)',
+          },
           {
             displayName: 'Formats',
             name: 'formats',
@@ -342,15 +543,15 @@ export class YouDotCom implements INodeType {
             ],
           },
           {
-            displayName: 'Crawl Timeout',
-            name: 'crawl_timeout',
+            displayName: 'Max Age',
+            name: 'max_age',
             type: 'number',
             typeOptions: {
-              minValue: 1,
-              maxValue: 60,
+              minValue: 0,
             },
-            default: 30,
-            description: 'Timeout in seconds for page crawling (1-60)',
+            default: 0,
+            description:
+              'Maximum allowed age of cached content in seconds. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit (use cache regardless of age).',
           },
         ],
       },
@@ -373,7 +574,24 @@ export class YouDotCom implements INodeType {
         },
         default: '',
         placeholder: 'e.g., Which global cities improved air quality the most over the past 10 years?',
-        description: 'The research question or complex query requiring in-depth investigation',
+        description: 'The research question or complex query requiring in-depth investigation (max 40,000 characters)',
+      },
+      {
+        displayName: 'Input',
+        name: 'input',
+        type: 'string',
+        required: true,
+        typeOptions: {
+          rows: 4,
+        },
+        displayOptions: {
+          show: {
+            operation: ['finance_research'],
+          },
+        },
+        default: '',
+        placeholder: "e.g., How has Tesla's gross margin trended over the last 8 quarters?",
+        description: 'The financial research question requiring in-depth investigation (max 40,000 characters)',
       },
       {
         displayName: 'Research Effort',
@@ -388,16 +606,6 @@ export class YouDotCom implements INodeType {
         description: 'Controls the depth and time spent on research',
         options: [
           {
-            name: 'Lite',
-            value: 'lite',
-            description: 'Quick answers for straightforward questions',
-          },
-          {
-            name: 'Standard',
-            value: 'standard',
-            description: 'Balanced speed and depth for most questions',
-          },
-          {
             name: 'Deep',
             value: 'deep',
             description: 'More time researching and cross-referencing sources',
@@ -407,38 +615,289 @@ export class YouDotCom implements INodeType {
             value: 'exhaustive',
             description: 'Most thorough option for complex research tasks',
           },
+          {
+            name: 'Frontier',
+            value: 'frontier',
+            description: 'Highest quality tier, requires background mode',
+          },
+          {
+            name: 'Lite',
+            value: 'lite',
+            description: 'Quick answers for straightforward questions',
+          },
+          {
+            name: 'Standard',
+            value: 'standard',
+            description: 'Balanced speed and depth for most questions',
+          },
         ],
+      },
+      {
+        displayName: 'Background',
+        name: 'background',
+        type: 'boolean',
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: false,
+        description:
+          'Whether to queue a research task and return a task handle immediately instead of waiting for the result inline. Use Get Research Task to retrieve the result.',
+      },
+      {
+        displayName: 'Source Control',
+        name: 'sourceControl',
+        type: 'collection',
+        placeholder: 'Add source control',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        description: 'Beta. Controls which web sources the research agent searches and visits.',
+        options: [
+          {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Country',
+            name: 'country',
+            type: 'options',
+            default: '',
+            description: 'ISO 3166-1 alpha-2 country code to geographically focus web results',
+            options: COUNTRY_OPTIONS,
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Never return results from these domains (max 500). Also blocks browsing. Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Freshness',
+            name: 'freshness',
+            type: 'options',
+            default: '',
+            description: FRESHNESS_DESCRIPTION,
+            options: FRESHNESS_OPTIONS,
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
+          },
+        ],
+      },
+      {
+        displayName: 'Output Schema',
+        name: 'outputSchema',
+        type: 'string',
+        typeOptions: {
+          rows: 10,
+        },
+        displayOptions: {
+          show: {
+            operation: ['research'],
+          },
+        },
+        default: '',
+        placeholder: '{"type":"object","properties":{...},"required":[...]}',
+        description:
+          'Beta. JSON Schema requesting structured JSON output. Supported with standard, deep, exhaustive, and frontier effort. Not supported with lite.',
+      },
+      {
+        displayName: 'Finance Research Effort',
+        name: 'financeResearchEffort',
+        type: 'options',
+        displayOptions: {
+          show: {
+            operation: ['finance_research'],
+          },
+        },
+        default: 'deep',
+        description: 'Controls the depth and time spent on financial research',
+        options: [
+          {
+            name: 'Deep',
+            value: 'deep',
+            description: 'More time researching and cross-referencing sources (default)',
+          },
+          {
+            name: 'Exhaustive',
+            value: 'exhaustive',
+            description: 'Most thorough option for complex financial research tasks',
+          },
+        ],
+      },
+      {
+        displayName: 'Query',
+        name: 'query',
+        type: 'string',
+        required: true,
+        displayOptions: {
+          show: {
+            operation: ['answer'],
+          },
+        },
+        default: '',
+        placeholder: 'e.g., What is the capital of France?',
+        description:
+          'The search query used to retrieve relevant web results (max 400 characters). Search operators are not supported.',
+      },
+      {
+        displayName: 'Answer Options',
+        name: 'answerOptions',
+        type: 'collection',
+        placeholder: 'Add Option',
+        default: {},
+        displayOptions: {
+          show: {
+            operation: ['answer'],
+          },
+        },
+        description: 'Optional filters for the answer operation',
+        options: [
+          {
+            displayName: 'Boost Domains',
+            name: 'boost_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Boost results from these domains without excluding other domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Country',
+            name: 'country',
+            type: 'options',
+            default: '',
+            description: COUNTRY_DESCRIPTION,
+            options: COUNTRY_OPTIONS,
+          },
+          {
+            displayName: 'Exclude Domains',
+            name: 'exclude_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description: 'Never return results from these domains (max 500). Cannot combine with Include Domains.',
+          },
+          {
+            displayName: 'Freshness',
+            name: 'freshness',
+            type: 'options',
+            default: '',
+            description: FRESHNESS_DESCRIPTION,
+            options: FRESHNESS_OPTIONS,
+          },
+          {
+            displayName: 'Include Domains',
+            name: 'include_domains',
+            type: 'string',
+            typeOptions: {
+              multipleValues: true,
+            },
+            default: [],
+            description:
+              'Only return results from these domains (max 500). Cannot combine with Exclude Domains or Boost Domains.',
+          },
+          {
+            displayName: 'Language',
+            name: 'language',
+            type: 'options',
+            default: 'EN',
+            description: 'BCP 47 language tag for the web results',
+            options: LANGUAGE_OPTIONS,
+          },
+          {
+            displayName: 'Safe Search',
+            name: 'safesearch',
+            type: 'options',
+            default: '',
+            description: 'Content moderation filter level',
+            options: [{ name: 'Default', value: '' }, ...SAFESEARCH_OPTIONS],
+          },
+        ],
+      },
+      {
+        displayName: 'Task ID',
+        name: 'taskId',
+        type: 'string',
+        required: true,
+        displayOptions: {
+          show: {
+            operation: ['get_research_task'],
+          },
+        },
+        default: '',
+        placeholder: 'e.g., abc12345-...',
+        description: 'The UUID of the background research task to poll',
       },
     ],
   }
+
+  /**
+   * Maps each `operation` dropdown value to its handler. Shared shape lets
+   * execute() dispatch through one lookup instead of a hand-copied branch per
+   * operation. A Map (not a plain object) so an attacker-influenced operation
+   * string like "constructor" or "toString" can't resolve to an inherited
+   * Object.prototype value instead of `undefined`.
+   */
+  static #operationHandlers: ReadonlyMap<string, OperationHandler> = new Map<string, OperationHandler>([
+    ['search', YouDotCom.#executeSearch],
+    ['contents', YouDotCom.#executeContents],
+    ['research', YouDotCom.#executeResearch],
+    ['answer', YouDotCom.#executeAnswer],
+    ['finance_research', YouDotCom.#executeFinanceResearch],
+    ['get_research_task', YouDotCom.#executeGetResearchTask],
+  ])
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData()
     const returnData: INodeExecutionData[] = []
 
+    // Build the X-Client-Info attribution header once. The header is fully
+    // automatic — the plugin name and version are compile-time constants, so
+    // there is no user-supplied input to validate or fail on.
+    const clientInfoHeader = buildClientInfoHeader({ pluginVersion: PACKAGE_VERSION })
+
     for (let i = 0; i < items.length; i++) {
       try {
-        const operation = this.getNodeParameter('operation', i)
-
-        if (operation === 'search') {
-          const response = await YouDotCom.#executeSearch(this, i)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'contents') {
-          const response = await YouDotCom.#executeContents(this, i)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
-        } else if (operation === 'research') {
-          const response = await YouDotCom.#executeResearch(this, i)
-          const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
-            itemData: { item: i },
-          })
-          returnData.push(...executionData)
+        const operation = this.getNodeParameter('operation', i) as string
+        const handler = YouDotCom.#operationHandlers.get(operation)
+        if (!handler) {
+          throw new NodeOperationError(this.getNode(), `Unknown operation: ${operation}`, { itemIndex: i })
         }
+        const response = await handler(this, i, clientInfoHeader)
+        const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(response), {
+          itemData: { item: i },
+        })
+        returnData.push(...executionData)
       } catch (error) {
         if (this.continueOnFail()) {
           returnData.push({
@@ -459,34 +918,58 @@ export class YouDotCom implements INodeType {
   }
 
   /**
-   * Execute Search operation
+   * Execute Web Search operation
    *
    * @param context - n8n execution context with helper methods
    * @param itemIndex - Index of the current item being processed
-   * @returns Search results from You.com API
+   * @returns Web Search results from You.com API
    */
-  static async #executeSearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+  static async #executeSearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
     const query = context.getNodeParameter('query', itemIndex) as string
-    const options = context.getNodeParameter('searchOptions', itemIndex) as Record<string, unknown>
+    const options = context.getNodeParameter('searchOptions', itemIndex, {}) as Record<string, unknown>
 
-    const qs: Record<string, string | number> = { query }
+    const extraction = options.extraction as
+      | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
+      | undefined
+    // The UI can't set full_page without extraction_mode (the sub-field is
+    // hidden until Extraction Mode = Full Page), but a caller driving this as
+    // an AI-agent tool (usableAsTool) isn't bound by that UI gating and could
+    // supply full_page alone — infer full_page mode rather than silently
+    // dropping the whole extraction request.
+    const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
+    const hasExtraction = extractionMode != null
 
-    if (options.count) qs.count = options.count as number
-    if (options.country) qs.country = options.country as string
-    if (options.freshness) qs.freshness = options.freshness as string
-    if (options.language) qs.language = options.language as string
-    if (options.livecrawl) qs.livecrawl = options.livecrawl as string
-    if (options.livecrawl_formats) qs.livecrawl_formats = options.livecrawl_formats as string
-    if (options.offset !== undefined) qs.offset = options.offset as number
-    if (options.safesearch) qs.safesearch = options.safesearch as string
+    const body: Record<string, unknown> = { query }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
-      method: 'GET',
-      url: 'https://ydc-index.io/v1/search',
-      headers: {
-        'User-Agent': USER_AGENT,
-      },
-      qs,
+    if (options.count != null) body.count = options.count as number
+    applyResultFilters(body, options)
+    if (options.offset != null) body.offset = options.offset as number
+    applyDomainFilters(context, body, options, itemIndex)
+
+    if (hasExtraction) {
+      const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
+      const fullPage = extraction?.full_page
+      if (extractionMode === 'full_page' && fullPage?.extraction_formats?.length) {
+        extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
+      }
+      body.extraction = extractionBody
+    }
+
+    // crawl_timeout is invalid alongside extraction_mode == "highlights" (the
+    // server rejects it); omit it in that case. Otherwise send when set.
+    const stripCrawlTimeout = extractionMode === 'highlights'
+    if (options.crawl_timeout != null && !stripCrawlTimeout) {
+      body.crawl_timeout = options.crawl_timeout as number
+    }
+
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
+      method: 'POST',
+      url: `${SEARCH_API_BASE}/v1/search`,
+      body,
       json: true,
     })
 
@@ -500,15 +983,16 @@ export class YouDotCom implements INodeType {
    * @param itemIndex - Index of the current item being processed
    * @returns Content extracted from URLs
    */
-  static async #executeContents(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject[]> {
-    const urlsString = context.getNodeParameter('urls', itemIndex) as string
-    const options = context.getNodeParameter('contentsOptions', itemIndex) as Record<string, unknown>
+  static async #executeContents(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject[]> {
+    const urlsRaw = context.getNodeParameter('urls', itemIndex)
+    const options = context.getNodeParameter('contentsOptions', itemIndex, {}) as Record<string, unknown>
 
-    // Parse comma-separated URLs and trim whitespace
-    const urls = urlsString
-      .split(',')
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0)
+    // Normalize URLs from multi-string or CSV string input
+    const urls = toUrlList(urlsRaw)
 
     if (urls.length === 0) {
       throw new NodeOperationError(context.getNode(), 'At least one URL is required', { itemIndex })
@@ -521,16 +1005,16 @@ export class YouDotCom implements INodeType {
     if (formats && formats.length > 0) {
       body.formats = formats
     }
-    if (options.crawl_timeout) {
+    if (options.crawl_timeout != null) {
       body.crawl_timeout = options.crawl_timeout
     }
+    if (options.max_age != null && (options.max_age as number) > 0) {
+      body.max_age = options.max_age
+    }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://ydc-index.io/v1/contents',
-      headers: {
-        'User-Agent': USER_AGENT,
-      },
+      url: `${SEARCH_API_BASE}/v1/contents`,
       body,
       json: true,
     })
@@ -545,23 +1029,122 @@ export class YouDotCom implements INodeType {
    * @param itemIndex - Index of the current item being processed
    * @returns Research answer with citations and sources from You.com API
    */
-  static async #executeResearch(context: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+  static async #executeResearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
     const input = context.getNodeParameter('input', itemIndex) as string
     const researchEffort = context.getNodeParameter('researchEffort', itemIndex) as string
+    const background = context.getNodeParameter('background', itemIndex, false) as boolean
 
-    const body: Record<string, string> = { input }
-
-    if (researchEffort) {
-      body.research_effort = researchEffort
+    // frontier effort requires background mode (server returns 422 otherwise)
+    if (researchEffort === 'frontier' && !background) {
+      throw new NodeOperationError(
+        context.getNode(),
+        'Frontier research effort requires Background mode. Enable Background or choose a different effort level.',
+        { itemIndex },
+      )
     }
 
-    const rawResponse = await context.helpers.httpRequestWithAuthentication.call(context, 'youDotComApi', {
+    const body: Record<string, unknown> = { input, research_effort: researchEffort, background }
+
+    // source_control collection
+    const sourceControl = context.getNodeParameter('sourceControl', itemIndex, {}) as Record<string, unknown>
+    const scBody: Record<string, unknown> = {}
+    applyDomainFilters(context, scBody, sourceControl, itemIndex)
+    applyResultFilters(scBody, sourceControl)
+    if (Object.keys(scBody).length > 0) body.source_control = scBody
+
+    // output_schema (JSON string → object)
+    const outputSchema = context.getNodeParameter('outputSchema', itemIndex, '') as string
+    if (outputSchema.trim()) {
+      if (researchEffort === 'lite') {
+        throw new NodeOperationError(
+          context.getNode(),
+          'Output Schema is not supported with Lite research effort. Choose a different effort level or clear Output Schema.',
+          { itemIndex },
+        )
+      }
+      try {
+        body.output_schema = JSON.parse(outputSchema)
+      } catch {
+        throw new NodeOperationError(context.getNode(), 'Output Schema must be valid JSON.', { itemIndex })
+      }
+    }
+
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
       method: 'POST',
-      url: 'https://api.you.com/v1/research',
-      headers: {
-        'User-Agent': USER_AGENT,
-      },
+      url: `${RESEARCH_API_BASE}/v1/research`,
       body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Answer operation
+   */
+  static async #executeAnswer(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const query = context.getNodeParameter('query', itemIndex) as string
+    const options = context.getNodeParameter('answerOptions', itemIndex, {}) as Record<string, unknown>
+
+    const body: Record<string, unknown> = { query }
+
+    applyDomainFilters(context, body, options, itemIndex)
+    applyResultFilters(body, options)
+
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
+      method: 'POST',
+      url: `${RESEARCH_API_BASE}/v1/answer`,
+      body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Finance Research operation
+   */
+  static async #executeFinanceResearch(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const input = context.getNodeParameter('input', itemIndex) as string
+    const researchEffort = context.getNodeParameter('financeResearchEffort', itemIndex) as string
+
+    const body: Record<string, unknown> = { input, research_effort: researchEffort }
+
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
+      method: 'POST',
+      url: `${RESEARCH_API_BASE}/v1/finance_research`,
+      body,
+      json: true,
+    })
+
+    return rawResponse as IDataObject
+  }
+
+  /**
+   * Execute Get Research Task operation
+   */
+  static async #executeGetResearchTask(
+    context: IExecuteFunctions,
+    itemIndex: number,
+    clientInfoHeader: string,
+  ): Promise<IDataObject> {
+    const taskId = context.getNodeParameter('taskId', itemIndex) as string
+
+    const rawResponse = await callYouDotComApi(context, clientInfoHeader, {
+      method: 'GET',
+      url: `${RESEARCH_API_BASE}/v1/research/${encodeURIComponent(taskId)}`,
       json: true,
     })
 
