@@ -29,6 +29,7 @@ Great for monitoring mentions, pulling recent news, or feeding live data into AI
 | Extraction | Controls how page content is attached to each result |
 | Freshness | Filter by recency: day, week, month, or year |
 | Include Domains | Restrict results to these domains, strict allowlist (up to 500). Cannot combine with Exclude Domains or Boost Domains |
+| Knowledge | Request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers), returned in `results.knowledge` when relevant: none (default) or core |
 | Language | BCP 47 language code for results (default: EN) |
 | Offset | Pagination offset, 0-9 |
 | Safe Search | Content filter: off, moderate, or strict |
@@ -38,6 +39,7 @@ Great for monitoring mentions, pulling recent news, or feeding live data into AI
 | Sub-option | Description |
 |------------|-------------|
 | Extraction Mode | `highlights` returns query-relevant excerpts; `full_page` returns full HTML/Markdown (default: highlights) |
+| Extraction Source | Where Full Page content comes from: server default/blend (cached when available, live otherwise), cache (cached only, results with none are omitted), or fetch (always live). Only shown when Extraction Mode is Full Page |
 | Full Page > Extraction Formats | Format(s) returned for each result: markdown, HTML (default: markdown). Only shown when Extraction Mode is Full Page |
 
 ### Get Contents
@@ -50,7 +52,7 @@ Useful for scraping product pages, pulling article text, or extracting structure
 |-----------|-------------|
 | URLs | One or more URLs to extract (required). Use the + button to add multiple URLs, or enter a comma-separated list |
 | Crawl Timeout | Max seconds to wait for page content, 1-60 (default: 10) |
-| Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards) |
+| Formats | Output formats: markdown, HTML, and/or metadata (JSON-LD, OpenGraph, Twitter Cards). The metadata format is deprecated and will be removed in a future release; prefer markdown and/or HTML |
 | Max Age | Maximum allowed age of cached content in seconds. Set above 0 to enforce a freshness threshold; leave at 0 or unset for no age limit |
 
 ### Research
