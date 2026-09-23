@@ -9,11 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **`knowledge` parameter on Web Search, matching You.com Python SDK 3.5.0.** Select **Knowledge: Core** to request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers). They arrive in their own `results.knowledge` section of the response when relevant to the query. Left unset (the default), the request omits the parameter entirely.
-- **`extraction.extraction_source` parameter on Web Search, matching You.com Python SDK 3.3.0.** Inside **Extraction**, when **Extraction Mode** is **Full Page**, a new **Extraction Source** dropdown selects where page content comes from: **Blend** (the server default) serves cached content when available and crawls the page live otherwise, **Cache** returns cached content only (results with none are omitted), and **Fetch** always crawls the page live. Invalid with **Highlights** mode — the node blocks the combination at execution time with a clear error rather than round-tripping a 422.
-
-### Fixed
-
-- **An `extraction` object carrying only `extraction_source` (no `extraction_mode`) was silently dropped.** A caller driving the node as an AI-agent tool can set any parameter combination, not just the ones the UI gates. `full_page` alone already inferred Full Page mode; `extraction_source` now infers it too, so the request reaches the API instead of vanishing.
+- **`extraction.extraction_source` parameter on Web Search, matching You.com Python SDK 3.3.0.** Inside **Extraction**, when **Extraction Mode** is **Full Page**, a new **Extraction Source** dropdown selects where page content comes from: **Blend** (the server default) serves cached content when available and crawls the page live otherwise, **Cache** returns cached content only (results with none are omitted), and **Fetch** always crawls the page live.
 
 ### Deprecated
 

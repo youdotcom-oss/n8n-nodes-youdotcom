@@ -17,7 +17,7 @@ import { YouDotCom } from '../nodes/YouDotCom/YouDotCom.node.ts'
  * - Empty URLs throws
  * - crawl_timeout is stripped for highlights extraction
  * - knowledge is sent when set and omitted otherwise
- * - extraction_source is sent with full_page and rejected with highlights
+ * - extraction_source is sent with full_page and omitted otherwise
  */
 
 /** Mock node for error construction */
@@ -150,23 +150,6 @@ describe('Execute — Web Search request body', () => {
     })
     const body = requests[0]?.body as Record<string, unknown>
     expect(body.crawl_timeout).toBe(30)
-  })
-
-  test('infers full_page extraction_mode when extraction_source is set without an explicit mode (e.g. AI-agent tool call)', async () => {
-    const requests = await runExecute({
-      operation: 'search',
-      query: 'test',
-      searchOptions: {
-        extraction: {
-          extraction_source: 'cache',
-        },
-      },
-      __credentials: {},
-    })
-    const body = requests[0]?.body as Record<string, unknown>
-    const extraction = body.extraction as Record<string, unknown>
-    expect(extraction.extraction_mode).toBe('full_page')
-    expect(extraction.extraction_source).toBe('cache')
   })
 
   test('omits knowledge when explicitly set to empty string (UI default)', async () => {
@@ -329,22 +312,6 @@ describe('Execute — Web Search request body', () => {
     const extraction = body.extraction as Record<string, unknown>
     expect(extraction.extraction_mode).toBe('full_page')
     expect(extraction.extraction_source).toBe('cache')
-  })
-
-  test('throws when extraction_source combines with highlights extraction mode', async () => {
-    await expect(
-      runExecute({
-        operation: 'search',
-        query: 'test',
-        searchOptions: {
-          extraction: {
-            extraction_mode: 'highlights',
-            extraction_source: 'cache',
-          },
-        },
-        __credentials: {},
-      }),
-    ).rejects.toThrow('Extraction Source is only valid with Full Page')
   })
 
   test('sends offset: 0 explicitly rather than omitting it', async () => {

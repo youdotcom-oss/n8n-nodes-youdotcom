@@ -971,13 +971,12 @@ export class YouDotCom implements INodeType {
           full_page?: { extraction_formats?: string[] }
         }
       | undefined
-    // The UI can't set full_page or extraction_source without extraction_mode
-    // (the sub-fields are hidden until Extraction Mode = Full Page), but a
-    // caller driving this as an AI-agent tool (usableAsTool) isn't bound by
-    // that UI gating — infer full_page mode rather than silently dropping
-    // the whole extraction request.
-    const extractionMode =
-      extraction?.extraction_mode ?? (extraction?.full_page || extraction?.extraction_source ? 'full_page' : undefined)
+    // The UI can't set full_page without extraction_mode (the sub-field is
+    // hidden until Extraction Mode = Full Page), but a caller driving this as
+    // an AI-agent tool (usableAsTool) isn't bound by that UI gating and could
+    // supply full_page alone — infer full_page mode rather than silently
+    // dropping the whole extraction request.
+    const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
     const hasExtraction = extractionMode != null
 
     const body: Record<string, unknown> = { query }
@@ -991,21 +990,12 @@ export class YouDotCom implements INodeType {
       const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
       const fullPage = extraction?.full_page
       if (extractionMode === 'full_page') {
-        // The UI hides Extraction Source unless Extraction Mode is Full Page,
-        // but a caller driving this as an AI-agent tool isn't bound by that
-        // gating — reject the combination rather than round-tripping a 422.
         if (extraction?.extraction_source) {
           extractionBody.extraction_source = extraction.extraction_source
         }
         if (fullPage?.extraction_formats?.length) {
           extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
         }
-      } else if (extraction?.extraction_source) {
-        throw new NodeOperationError(
-          context.getNode(),
-          'Extraction Source is only valid with Full Page extraction mode. Switch Extraction Mode to Full Page or clear Extraction Source.',
-          { itemIndex },
-        )
       }
       body.extraction = extractionBody
     }
