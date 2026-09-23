@@ -216,7 +216,7 @@ describe('Execute — Web Search request body', () => {
     expect(extraction.full_page).toBeUndefined()
   })
 
-  test('infers full_page extraction_mode when full_page is set without an explicit mode (e.g. AI-agent tool call)', async () => {
+  test('infers full_page extraction_mode when full_page is set without an explicit mode (direct callers)', async () => {
     const requests = await runExecute({
       operation: 'search',
       query: 'test',
@@ -295,6 +295,31 @@ describe('Execute — Web Search request body', () => {
     expect(body.knowledge).toBe('core')
   })
 
+  test('sends default count 10 when knowledge is set and count is unset', async () => {
+    // The API only serves knowledge results when count is present. The SDK
+    // always sends count (default 10); the node omits it when unset, which
+    // made Knowledge a silent no-op for users who never touched Count.
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: { knowledge: 'core' },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.count).toBe(10)
+  })
+
+  test('omits count when neither knowledge nor count is set', async () => {
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {},
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.count).toBeUndefined()
+  })
+
   test('sends extraction_source with full_page extraction', async () => {
     const requests = await runExecute({
       operation: 'search',
@@ -312,6 +337,26 @@ describe('Execute — Web Search request body', () => {
     const extraction = body.extraction as Record<string, unknown>
     expect(extraction.extraction_mode).toBe('full_page')
     expect(extraction.extraction_source).toBe('cache')
+  })
+
+  test('drops extraction_source when extraction mode is highlights', async () => {
+    // Unreachable through n8n's normal parameter resolution (displayOptions-gated
+    // sub-fields are stripped unless the gating field is expression-valued),
+    // but direct callers can produce the combination — pin the drop so it stays
+    // a valid highlights request rather than regressing into a throw or a 422.
+    const requests = await runExecute({
+      operation: 'search',
+      query: 'test',
+      searchOptions: {
+        extraction: {
+          extraction_mode: 'highlights',
+          extraction_source: 'cache',
+        },
+      },
+      __credentials: {},
+    })
+    const body = requests[0]?.body as Record<string, unknown>
+    expect(body.extraction).toEqual({ extraction_mode: 'highlights' })
   })
 
   test('sends offset: 0 explicitly rather than omitting it', async () => {

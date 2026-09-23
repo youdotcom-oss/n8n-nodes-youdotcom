@@ -179,7 +179,7 @@ export function toUrlList(value: unknown): string[] {
   return []
 }
 
-/** Copy the country/freshness/language/safesearch result filters (shared by Web Search and Answer) into body when set. */
+/** Copy the country/freshness/language/safesearch filters (shared by Web Search and Answer) and Web Search's knowledge into body when set. */
 function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
   if (options.country) body.country = options.country as string
   if (options.freshness) body.freshness = options.freshness as string
@@ -971,17 +971,24 @@ export class YouDotCom implements INodeType {
           full_page?: { extraction_formats?: string[] }
         }
       | undefined
-    // The UI can't set full_page without extraction_mode (the sub-field is
-    // hidden until Extraction Mode = Full Page), but a caller driving this as
-    // an AI-agent tool (usableAsTool) isn't bound by that UI gating and could
-    // supply full_page alone — infer full_page mode rather than silently
-    // dropping the whole extraction request.
+    // n8n's parameter layer strips displayOptions-gated sub-fields when the
+    // gating value doesn't match, so full_page can only arrive without
+    // extraction_mode from a direct caller (tests, tooling) — infer full_page
+    // rather than silently dropping the whole extraction request.
     const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
     const hasExtraction = extractionMode != null
 
     const body: Record<string, unknown> = { query }
 
-    if (options.count != null) body.count = options.count as number
+    if (options.count != null) {
+      body.count = options.count as number
+    } else if (options.knowledge) {
+      // The API only serves knowledge results when count is present, and the
+      // Python SDK always sends it (default 10) — without this, Knowledge is
+      // a silent no-op when Count is left unset. 10 matches the server's
+      // default, so web results are unchanged.
+      body.count = 10
+    }
     applyResultFilters(body, options)
     if (options.offset != null) body.offset = options.offset as number
     applyDomainFilters(context, body, options, itemIndex)

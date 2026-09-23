@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **`knowledge` parameter on Web Search, matching You.com Python SDK 3.5.0.** Select **Knowledge: Core** to request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers). They arrive in their own `results.knowledge` section of the response when relevant to the query. Left unset (the default), the request omits the parameter entirely.
+- **`knowledge` parameter on Web Search, matching You.com Python SDK 3.5.0.** Select **Knowledge: Core** to request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers). They arrive in their own `results.knowledge` section of the response when relevant to the query. Left unset (the default), the request omits the parameter entirely. When Knowledge is set and **Count** is left unset, the node sends the SDK's default `count: 10` — the API only serves knowledge results when `count` is present, so without it the parameter was a silent no-op. The explicit 10 matches the server's default, so web results are unchanged.
 - **`extraction.extraction_source` parameter on Web Search, matching You.com Python SDK 3.3.0.** Inside **Extraction**, when **Extraction Mode** is **Full Page**, a new **Extraction Source** dropdown selects where page content comes from: **Blend** (the server default) serves cached content when available and crawls the page live otherwise, **Cache** returns cached content only (results with none are omitted), and **Fetch** always crawls the page live.
 
 ### Deprecated
