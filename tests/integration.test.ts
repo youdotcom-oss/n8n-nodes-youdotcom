@@ -106,8 +106,8 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
   })
 
   test('search with knowledge core returns knowledge results', async () => {
-    // count must be present: the API serves knowledge results only when
-    // count is set (verified against the live API; the SDK always sends it).
+    // count must be present on the wire for knowledge results to return —
+    // the node backfills the SDK default when the user never sets Count.
     const res = await postJson(SEARCH_URL, {
       query: 'France',
       count: 3,

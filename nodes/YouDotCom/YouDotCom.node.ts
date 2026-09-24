@@ -985,10 +985,9 @@ export class YouDotCom implements INodeType {
     if (options.count != null) {
       body.count = options.count as number
     } else if (options.knowledge) {
-      // The API only serves knowledge results when count is present, and the
-      // Python SDK always sends it (default 10) — without this, Knowledge is
-      // a silent no-op when Count is left unset. 10 matches the server's
-      // default, so web results are unchanged.
+      // Knowledge requires an explicit count on the wire — send the SDK's
+      // default (10), which matches the server's behavior for an unset
+      // count, so web results are unchanged.
       body.count = 10
     }
     applyResultFilters(body, options)

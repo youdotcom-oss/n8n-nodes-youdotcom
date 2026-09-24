@@ -296,9 +296,8 @@ describe('Execute — Web Search request body', () => {
   })
 
   test('sends default count 10 when knowledge is set and count is unset', async () => {
-    // The API only serves knowledge results when count is present. The SDK
-    // always sends count (default 10); the node omits it when unset, which
-    // made Knowledge a silent no-op for users who never touched Count.
+    // Knowledge requires an explicit count on the wire; the SDK's default
+    // (10) matches the server's behavior for an unset count.
     const requests = await runExecute({
       operation: 'search',
       query: 'test',
