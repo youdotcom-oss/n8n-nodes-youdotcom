@@ -179,7 +179,7 @@ export function toUrlList(value: unknown): string[] {
   return []
 }
 
-/** Copy the country/freshness/language/safesearch filters (shared by Web Search and Answer) and Web Search's knowledge into body when set. */
+/** Copy the country/freshness/language/safesearch filters (Web Search, Answer, and Research source_control) and Web Search's knowledge into body when set. */
 function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
   if (options.country) body.country = options.country as string
   if (options.freshness) body.freshness = options.freshness as string
