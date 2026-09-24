@@ -64,7 +64,11 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     const res = await postJson(SEARCH_URL, { query: 'capital of France' })
     expect(res.status).toBe(200)
     const data = (await res.json()) as Record<string, unknown>
-    expect(data).toBeDefined()
+    const results = data.results as Record<string, unknown> | undefined
+    const web = results?.web as Array<Record<string, unknown>> | undefined
+    expect(Array.isArray(web)).toBe(true)
+    expect(web?.length).toBeGreaterThan(0)
+    expect(web?.[0]?.url).toBeDefined()
   })
 
   test('search with include_domains restricts results', async () => {
@@ -99,6 +103,45 @@ describe.skipIf(!API_KEY)('Live API Integration', () => {
     expect(res.status).toBe(200)
     const data = (await res.json()) as Record<string, unknown>
     expect(data).toBeDefined()
+  })
+
+  test('search with knowledge core returns knowledge results', async () => {
+    // count must be present on the wire for knowledge results to return —
+    // the node backfills the SDK default when the user never sets Count.
+    const res = await postJson(SEARCH_URL, {
+      query: 'France',
+      count: 3,
+      knowledge: 'core',
+    })
+    expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    const results = data.results as Record<string, unknown> | undefined
+    const knowledge = results?.knowledge as Array<Record<string, unknown>> | undefined
+    expect(Array.isArray(knowledge)).toBe(true)
+    expect(knowledge?.length).toBeGreaterThan(0)
+    expect(knowledge?.[0]?.type).toBeDefined()
+    expect(knowledge?.[0]?.title).toBeDefined()
+  })
+
+  test('search with extraction full_page and extraction_source blend', async () => {
+    const res = await postJson(SEARCH_URL, {
+      query: 'Eiffel Tower',
+      extraction: {
+        extraction_mode: 'full_page',
+        extraction_source: 'blend',
+        full_page: { extraction_formats: ['markdown'] },
+      },
+      crawl_timeout: 15,
+    })
+    expect(res.status).toBe(200)
+    const data = (await res.json()) as Record<string, unknown>
+    const results = data.results as Record<string, unknown> | undefined
+    const web = results?.web as Array<Record<string, unknown>> | undefined
+    expect(Array.isArray(web)).toBe(true)
+    // blend serves cached content when available, then crawls live — at
+    // least one result should carry extracted markdown content.
+    const withContent = web?.some((r) => (r.contents as Record<string, unknown> | undefined)?.markdown != null)
+    expect(withContent).toBe(true)
   })
 
   test('search with exclude_domains filter', async () => {

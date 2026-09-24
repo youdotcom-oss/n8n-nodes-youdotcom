@@ -277,6 +277,28 @@ describe('YouDotCom Node', () => {
       expect(formatValues).toContain('html')
     })
 
+    test('has knowledge option with none and core values', () => {
+      const knowledgeOption = getSearchOption('Knowledge')
+      expect(knowledgeOption).toBeDefined()
+      expect(knowledgeOption?.name).toBe('knowledge')
+      expect(knowledgeOption?.type).toBe('options')
+      expect(knowledgeOption?.default).toBe('')
+      const knowledgeValues = knowledgeOption?.options?.map((o) => o.value)
+      expect(knowledgeValues).toEqual(['', 'core'])
+    })
+
+    test('has extraction_source option shown only for full_page mode', () => {
+      const extraction = getSearchOption('Extraction')
+      const exOptions = extraction?.options as unknown as PropertyWithOptions[] | undefined
+      const source = exOptions?.find((o) => o.name === 'extraction_source')
+      expect(source).toBeDefined()
+      expect(source?.type).toBe('options')
+      expect(source?.default).toBe('')
+      expect(source?.displayOptions?.show?.extraction_mode).toEqual(['full_page'])
+      const sourceValues = source?.options?.map((o) => o.value)
+      expect(sourceValues).toEqual(['', 'cache', 'fetch'])
+    })
+
     test('has crawl_timeout option with constraints 1-60 default 10', () => {
       const ct = getSearchOption('Crawl Timeout')
       expect(ct).toBeDefined()
@@ -326,6 +348,12 @@ describe('YouDotCom Node', () => {
       expect(formatValues).toContain('markdown')
       expect(formatValues).toContain('html')
       expect(formatValues).toContain('metadata')
+    })
+
+    test('metadata format is marked deprecated', () => {
+      const formatsOption = getContentsOption('Formats')
+      const metadataOption = formatsOption?.options?.find((o) => o.value === 'metadata')
+      expect(metadataOption?.description?.toLowerCase()).toContain('deprecated')
     })
 
     test('has crawl timeout option with correct constraints', () => {

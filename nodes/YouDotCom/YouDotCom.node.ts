@@ -179,10 +179,11 @@ export function toUrlList(value: unknown): string[] {
   return []
 }
 
-/** Copy the country/freshness/language/safesearch result filters (shared by Web Search and Answer) into body when set. */
+/** Copy the country/freshness/language/safesearch filters (Web Search, Answer, and Research source_control) and Web Search's knowledge into body when set. */
 function applyResultFilters(body: Record<string, unknown>, options: Record<string, unknown>): void {
   if (options.country) body.country = options.country as string
   if (options.freshness) body.freshness = options.freshness as string
+  if (options.knowledge) body.knowledge = options.knowledge as string
   if (options.language) body.language = options.language as string
   if (options.safesearch) body.safesearch = options.safesearch as string
 }
@@ -398,6 +399,24 @@ export class YouDotCom implements INodeType {
                 ],
               },
               {
+                displayName: 'Extraction Source',
+                name: 'extraction_source',
+                type: 'options',
+                default: '',
+                displayOptions: {
+                  show: {
+                    extraction_mode: ['full_page'],
+                  },
+                },
+                description:
+                  'Where Full Page content comes from (default Blend): Blend serves cached content when available and crawls live otherwise, Cache returns cached content only (results with none are omitted), Fetch always crawls the page live',
+                options: [
+                  { name: 'Server Default (Blend)', value: '' },
+                  { name: 'Cache', value: 'cache' },
+                  { name: 'Fetch', value: 'fetch' },
+                ],
+              },
+              {
                 displayName: 'Full Page',
                 name: 'full_page',
                 type: 'collection',
@@ -442,6 +461,18 @@ export class YouDotCom implements INodeType {
             default: [],
             description:
               'Restrict results to these domains (strict allowlist, up to 500). Cannot combine with Exclude Domains or Boost Domains.',
+          },
+          {
+            displayName: 'Knowledge',
+            name: 'knowledge',
+            type: 'options',
+            default: '',
+            description:
+              'Request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers), returned in results.knowledge when relevant to the query',
+            options: [
+              { name: 'None', value: '' },
+              { name: 'Core', value: 'core' },
+            ],
           },
           {
             displayName: 'Language',
@@ -538,7 +569,8 @@ export class YouDotCom implements INodeType {
               {
                 name: 'Metadata',
                 value: 'metadata',
-                description: 'Structured metadata (JSON-LD, OpenGraph, Twitter Cards)',
+                description:
+                  'Deprecated — will be removed in a future release. Structured metadata (JSON-LD, OpenGraph, Twitter Cards); prefer Markdown or HTML.',
               },
             ],
           },
@@ -933,19 +965,31 @@ export class YouDotCom implements INodeType {
     const options = context.getNodeParameter('searchOptions', itemIndex, {}) as Record<string, unknown>
 
     const extraction = options.extraction as
-      | { extraction_mode?: string; full_page?: { extraction_formats?: string[] } }
+      | {
+          extraction_mode?: string
+          extraction_source?: string
+          full_page?: { extraction_formats?: string[] }
+        }
       | undefined
-    // The UI can't set full_page without extraction_mode (the sub-field is
-    // hidden until Extraction Mode = Full Page), but a caller driving this as
-    // an AI-agent tool (usableAsTool) isn't bound by that UI gating and could
-    // supply full_page alone — infer full_page mode rather than silently
-    // dropping the whole extraction request.
+    // Deprecated fallback for direct callers (tests, tooling): n8n's parameter
+    // layer strips displayOptions-gated sub-fields when the gating value
+    // doesn't match, so no n8n-mediated path can deliver full_page without
+    // extraction_mode. The inference is removal-candidate dead code for real
+    // users, kept so direct callers' extraction requests aren't silently
+    // dropped.
     const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
     const hasExtraction = extractionMode != null
 
     const body: Record<string, unknown> = { query }
 
-    if (options.count != null) body.count = options.count as number
+    if (options.count != null) {
+      body.count = options.count as number
+    } else if (options.knowledge) {
+      // Knowledge requires an explicit count on the wire — send the SDK's
+      // default (10), which matches the server's behavior for an unset
+      // count, so web results are unchanged.
+      body.count = 10
+    }
     applyResultFilters(body, options)
     if (options.offset != null) body.offset = options.offset as number
     applyDomainFilters(context, body, options, itemIndex)
@@ -953,8 +997,13 @@ export class YouDotCom implements INodeType {
     if (hasExtraction) {
       const extractionBody: Record<string, unknown> = { extraction_mode: extractionMode }
       const fullPage = extraction?.full_page
-      if (extractionMode === 'full_page' && fullPage?.extraction_formats?.length) {
-        extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
+      if (extractionMode === 'full_page') {
+        if (extraction?.extraction_source) {
+          extractionBody.extraction_source = extraction.extraction_source
+        }
+        if (fullPage?.extraction_formats?.length) {
+          extractionBody.full_page = { extraction_formats: fullPage.extraction_formats }
+        }
       }
       body.extraction = extractionBody
     }

@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`knowledge` parameter on Web Search, matching You.com Python SDK 3.5.0.** Select **Knowledge: Core** to request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers). They arrive in their own `results.knowledge` section of the response when relevant to the query. Left unset (the default), the request omits the parameter entirely. When Knowledge is set and **Count** is left unset, the node sends the SDK's default `count: 10` for consistency with the SDK's request shape; web results are unchanged.
+- **`extraction.extraction_source` parameter on Web Search, matching You.com Python SDK 3.3.0.** Inside **Extraction**, when **Extraction Mode** is **Full Page**, a new **Extraction Source** dropdown selects where page content comes from: **Blend** (the server default) serves cached content when available and crawls the page live otherwise, **Cache** returns cached content only (results with none are omitted), and **Fetch** always crawls the page live.
+
+### Deprecated
+
+- **`metadata` format on Get Contents, matching You.com Python SDK 3.4.0.** The Metadata option is now marked deprecated and will be removed in a future major release, mirroring the upstream server change. Prefer **Markdown** and/or **HTML**.
+
+### Changed
+
+- **Development dependency refresh.** `@n8n/node-cli` ^0.23.0 → ^0.50.1 (satisfies n8n's documented provenance minimum of 0.23.0 and picks up current cloud-compat lint rules), `@biomejs/biome` ^2.3.8 → ^2.5.14, `eslint` 9.32.0 → 9.39.5, and `@types/bun` ^1.3.9 → ^1.4.2. No runtime dependencies — the package still ships only compiled `dist/` output, per the verified-community-node guidelines.
+
 ## [0.7.1] - 2026-08-28
 
 ### Fixed
