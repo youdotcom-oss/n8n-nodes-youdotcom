@@ -971,10 +971,12 @@ export class YouDotCom implements INodeType {
           full_page?: { extraction_formats?: string[] }
         }
       | undefined
-    // n8n's parameter layer strips displayOptions-gated sub-fields when the
-    // gating value doesn't match, so full_page can only arrive without
-    // extraction_mode from a direct caller (tests, tooling) — infer full_page
-    // rather than silently dropping the whole extraction request.
+    // Deprecated fallback for direct callers (tests, tooling): n8n's parameter
+    // layer strips displayOptions-gated sub-fields when the gating value
+    // doesn't match, so no n8n-mediated path can deliver full_page without
+    // extraction_mode. The inference is removal-candidate dead code for real
+    // users, kept so direct callers' extraction requests aren't silently
+    // dropped.
     const extractionMode = extraction?.extraction_mode ?? (extraction?.full_page ? 'full_page' : undefined)
     const hasExtraction = extractionMode != null
 
