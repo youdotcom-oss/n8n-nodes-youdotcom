@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Codex node field prefix, required by n8n's community-node review.** The `node` field in `nodes/YouDotCom/YouDotCom.node.json` used the unscoped prefix `n8n-nodes-youdotcom.youDotCom`, but n8n requires the full scoped npm package name as the prefix. It is now `@youdotcom-oss/n8n-nodes-youdotcom.youDotCom`, matching the node type that workflows already use. The codex file is metadata only — no workflow changes are needed.
+
+## [0.8.0] - 2026-09-24
+
 ### Added
 
 - **`knowledge` parameter on Web Search, matching You.com Python SDK 3.5.0.** Select **Knowledge: Core** to request knowledge results backed by licensed data providers (encyclopedias, market-data firms, reference publishers). They arrive in their own `results.knowledge` section of the response when relevant to the query. Left unset (the default), the request omits the parameter entirely. When Knowledge is set and **Count** is left unset, the node sends the SDK's default `count: 10` for consistency with the SDK's request shape; web results are unchanged.
