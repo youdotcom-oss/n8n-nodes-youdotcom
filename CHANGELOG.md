@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-06
+
 ### Fixed
 
 - **Codex node field prefix, required by n8n's community-node review.** The `node` field in `nodes/YouDotCom/YouDotCom.node.json` used the unscoped prefix `n8n-nodes-youdotcom.youDotCom`, but n8n requires the full scoped npm package name as the prefix. It is now `@youdotcom-oss/n8n-nodes-youdotcom.youDotCom`, matching the node type that workflows already use. The codex file is metadata only — no workflow changes are needed.
